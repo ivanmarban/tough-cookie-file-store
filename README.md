@@ -1,4 +1,7 @@
 # tough-cookie-file-store
+
+[![NPM](https://nodei.co/npm/tough-cookie-file-store.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/tough-cookie-file-store/)
+
 Another file store for tough-cookie module.
 
 The main purpose of this project is to have a published module with the original functionality of [tough-cookie-filestore][0] plus various fixes, improvements and features that I found useful.
@@ -10,14 +13,23 @@ $ npm install tough-cookie-file-store
 
 ## Usage
 ``` js
-var FileCookieStore = require('tough-cookie-file-store');
+var cookieStore = require('tough-cookie-file-store');
 var CookieJar = require('tough-cookie').CookieJar;
-var jar = new CookieJar(new FileCookieStore('./cookie.json'));
+var jar = new CookieJar(new cookieStore('./cookie.json'));
 
-/* check if cookie is expired */
-var cookieStore	= require('tough-cookie-filestore');
+/* check if cookie is empty or expired */
+var cookieStore	= require('tough-cookie-file-store');
 var cookieInstance = new cookieStore('./cookie.json');
-cookieInstance.isExpired() // will return True if the cookies is expired
+cookieInstance.isExpired() // will return True if the cookie is expired
+cookieInstance.isEmpty() // will return True is cookie is empty
+
+/* request example */
+var cookieStore = require('tough-cookie-file-store');
+var j = request.jar(new cookieStore('./cookie.json'));
+request = request.defaults({ jar : j })
+request('http://www.google.com', function() {
+  request('http://images.google.com')
+})
 ```
 
 ## Credits
