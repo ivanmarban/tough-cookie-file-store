@@ -1,0 +1,29 @@
+{
+  "name": "tough-cookie-file-store",
+  "description": "Another file store for tough-cookie module",
+  "version": "1.0.0",
+  "author": "Ivan Marban",
+  "homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/ivanmarban/tough-cookie-file-store.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ivanmarban/tough-cookie-file-store/issues"
+  },
+  "keywords": [
+    "cookie",
+    "cookies",
+    "cookiejar",
+    "file",
+	"store"
+  ],
+  "dependencies": {
+    "tough-cookie": "^2.2.1"
+  },
+  "main": "index",
+  "engines": {
+    "node": ">= 0.10.0"
+  },
+  "license": "MIT"
+}
