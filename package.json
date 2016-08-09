@@ -19,7 +19,7 @@
 	"store"
   ],
   "dependencies": {
-    "tough-cookie": "^2.2.1"
+    "tough-cookie": "^2.3.1"
   },
   "main": "index",
   "engines": {
