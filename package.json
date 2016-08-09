@@ -1,7 +1,7 @@
 {
   "name": "tough-cookie-file-store",
   "description": "Another file store for tough-cookie module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "Ivan Marban",
   "homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
   "repository": {
