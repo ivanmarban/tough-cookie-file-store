@@ -21,7 +21,7 @@ var jar = new CookieJar(new cookieStore('./cookie.json'));
 var cookieStore	= require('tough-cookie-file-store');
 var cookieInstance = new cookieStore('./cookie.json');
 cookieInstance.isExpired() // will return True if the cookie is expired
-cookieInstance.isEmpty() // will return True is cookie is empty
+cookieInstance.isEmpty() // will return True if cookie is empty
 
 /* request example */
 var cookieStore = require('tough-cookie-file-store');
