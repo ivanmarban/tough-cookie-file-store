@@ -1,29 +1,30 @@
 {
-  "name": "tough-cookie-file-store",
-  "description": "Another file store for tough-cookie module",
-  "version": "1.2.0",
-  "author": "Ivan Marban",
-  "homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
-  "repository": {
-    "type": "git",
-    "url": "http://github.com/ivanmarban/tough-cookie-file-store.git"
-  },
-  "bugs": {
-    "url": "https://github.com/ivanmarban/tough-cookie-file-store/issues"
-  },
-  "keywords": [
-    "cookie",
-    "cookies",
-    "cookiejar",
-    "file",
-    "store"
-  ],
-  "dependencies": {
-    "tough-cookie": "^2.3.3"
-  },
-  "main": "index",
-  "engines": {
-    "node": ">= 0.10.0"
-  },
-  "license": "MIT"
+	"name": "tough-cookie-file-store",
+	"description": "Another file store for tough-cookie module",
+	"version": "1.3.0",
+	"author": "Ivan Marban",
+	"homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
+	"repository": {
+		"type": "git",
+		"url": "http://github.com/ivanmarban/tough-cookie-file-store.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ivanmarban/tough-cookie-file-store/issues"
+	},
+	"keywords": [
+		"cookie",
+		"cookies",
+		"cookiejar",
+		"file",
+		"store"
+	],
+	"dependencies": {
+		"cryptr": "^4.0.2",
+		"tough-cookie": "^2.3.3"
+	},
+	"main": "index",
+	"engines": {
+		"node": ">= 0.10.0"
+	},
+	"license": "MIT"
 }
