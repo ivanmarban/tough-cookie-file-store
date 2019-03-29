@@ -19,6 +19,7 @@
     "store"
   ],
   "dependencies": {
+    "cryptr": "^4.0.2",
     "tough-cookie": "^2.3.3"
   },
   "main": "index",
