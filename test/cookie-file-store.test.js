@@ -311,6 +311,10 @@ describe('Test cookie-file-store', function () {
     })
 
     it('Should return an "Array" of cookies', function (done) {
+      after(function () {
+        fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+      })
+
       const fooCookie = Cookie.parse('foo=foo; Domain=example.com; Path=/')
       const barCookie = Cookie.parse('bar=bar; Domain=example.com; Path=/bar')
       fooCookie.creationIndex = null
