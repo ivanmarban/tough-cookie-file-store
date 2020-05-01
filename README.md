@@ -2,9 +2,14 @@
 
 [![NPM](https://nodei.co/npm/tough-cookie-file-store.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/tough-cookie-file-store/)
 
-Another file store for tough-cookie module.
+A JSON file store implementation for tough-cookie[0] module
 
-The main purpose of this project is to have a published module with the original functionality of [tough-cookie-filestore][0] plus various fixes, improvements and features that I found useful.
+[![Version npm](https://img.shields.io/npm/v/tough-cookie-file-store.svg)](https://www.npmjs.com/package/tough-cookie-file-store)
+[![npm Downloads](https://img.shields.io/npm/dw/winston-telegram.svg)](https://npmcharts.com/compare/tough-cookie-file-store?minimal=true)
+[![Build Status](https://travis-ci.org/ivanmarban/tough-cookie-file-store.svg?branch=master)](https://travis-ci.org/ivanmarban/tough-cookie-file-store)
+[![Coverage Status](https://coveralls.io/repos/github/ivanmarban/tough-cookie-file-store/badge.svg?branch=master)](https://coveralls.io/github/ivanmarban/tough-cookie-file-store?branch=master)
+[![dependencies Status](https://david-dm.org/ivanmarban/tough-cookie-file-store/status.svg)](https://david-dm.org/ivanmarban/tough-cookie-file-store)
+[![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
 
 ## Installation
 ``` sh
@@ -13,38 +18,16 @@ $ npm install tough-cookie-file-store
 
 ## Usage
 ``` js
-var cookieStore = require('tough-cookie-file-store');
-var CookieJar = require('tough-cookie').CookieJar;
-var jar = new CookieJar(new cookieStore('./cookie.json'));
-
-/* check if cookie is empty or expired */
-var cookieStore	= require('tough-cookie-file-store');
-var cookieInstance = new cookieStore('./cookie.json');
-cookieInstance.isExpired() // will return True if the cookie is expired
-cookieInstance.isEmpty() // will return True if cookie is empty
-
-/* request example */
-var cookieStore = require('tough-cookie-file-store');
-var j = request.jar(new cookieStore('./cookie.json'));
-request = request.defaults({ jar : j })
-request('http://www.google.com', function() {
-  request('http://images.google.com')
+const { CookieJar, Cookie } = require('tough-cookie')
+const CookieFileStore = require('tough-cookie-file-store').FileCookieStore
+const cookieJar = new CookieJar(new CookieFileStore('./cookie.json'))
+const cookie = Cookie.parse('foo=bar; Domain=example.com; Path=/')
+cookieJar.setCookie(cookie, 'http://example.com', function (error, cookie) {
+  console.log(cookie)
 })
 ```
-
-## Credits
-tough-cookie-filestore module: [@mitsuru][1]
-
-fixes/improvements: [@sarkian][2] [@mudkipme][3] [@vladh][4]
-
-expired feature: [@zhzehong][5]
 
 ## License
 MIT
 
-[0]: https://github.com/mitsuru/tough-cookie-filestore
-[1]: https://github.com/mitsuru/
-[2]: https://github.com/sarkian
-[3]: https://github.com/mudkipme
-[4]: https://github.com/vladh
-[5]: https://github.com/zhzehong
+[0]: https://github.com/salesforce/tough-cookie
