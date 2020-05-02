@@ -45,7 +45,7 @@ describe('Test cookie-file-store', function () {
 
   describe('#inspect', function () {
     it('idx should contain object ', function (done) {
-      const idx = cookieStore.inspect()
+      const idx = cookieStore._inspect()
       expect(idx).to.not.eq(null)
       done()
     })
@@ -209,18 +209,29 @@ describe('Test cookie-file-store', function () {
   })
 
   describe('#updateCookie', function () {
-    it('Should update an existing "foo" cookie', function (done) {
+    after(function () {
       const cookie = Cookie.parse('foo=foo; Domain=example.com; Path=/')
       cookie.expires = expiresDate
       cookie.creation = creationDate
       cookie.hostOnly = false
       cookie.lastAccessed = lastAccessedDate
-      cookieStore.updateCookie(null, cookie, function () {
+      cookieStore.putCookie(cookie, function () {})
+    })
+
+    it('Should update the value of an existing "foo" cookie', function (done) {
+      const oldCookie = Cookie.parse('foo=foo; Domain=example.com; Path=/')
+      oldCookie.expires = expiresDate
+      oldCookie.creation = creationDate
+      oldCookie.hostOnly = false
+      oldCookie.lastAccessed = lastAccessedDate
+      const newCookie = oldCookie
+      newCookie.value = 'bar'
+      cookieStore.updateCookie(oldCookie, newCookie, function () {
         cookieStore.findCookie('example.com', '/', 'foo', function (error, cookie) {
           expect(error).to.eq(null)
           expect(cookie).to.be.instanceof(Cookie)
           expect(cookie.key).to.eq('foo')
-          expect(cookie.value).to.eq('foo')
+          expect(cookie.value).to.eq('bar')
           expect(cookie.expires).to.equalDate(expiresDate)
           expect(cookie.domain).to.eq('example.com')
           expect(cookie.path).to.eq('/')
@@ -301,6 +312,10 @@ describe('Test cookie-file-store', function () {
   })
 
   describe('#getAllCookies', function () {
+    after(function () {
+      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+    })
+
     it('Should return an "Array" of cookies', function (done) {
       cookieStore.getAllCookies(function (error, cookies) {
         expect(error).to.eq(null)
@@ -311,10 +326,6 @@ describe('Test cookie-file-store', function () {
     })
 
     it('Should return an "Array" of cookies', function (done) {
-      after(function () {
-        fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
-      })
-
       const fooCookie = Cookie.parse('foo=foo; Domain=example.com; Path=/')
       const barCookie = Cookie.parse('bar=bar; Domain=example.com; Path=/bar')
       fooCookie.creationIndex = null
