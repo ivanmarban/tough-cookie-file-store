@@ -12,12 +12,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `tough-cookie@4` support.
 - Code style: ESLint + Standard + Prettier.
 - Test coverage.
+- JSDoc documentation.
 
 ### Changed
 - Refactored module.
 
 ### Removed
-- isEmtpy() and isExpired() methods
+- Removed isEmtpy() and isExpired() methods in favor of pure implementation of Store class.
 
 ## [v1.2.0] - 2016-08-09
 ### Added
@@ -35,7 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [v1.1.0] - 2016-02-10
 ### Added
-- isEmpty() method.
+- Added isEmpty() method.
 
 ## [v1.0.0] - 2016-02-10
 - Initial version.
