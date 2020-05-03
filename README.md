@@ -6,10 +6,11 @@ A JSON file store implementation for [tough-cookie][0] module
 
 [![Version npm](https://img.shields.io/npm/v/tough-cookie-file-store.svg)](https://www.npmjs.com/package/tough-cookie-file-store)
 [![npm Downloads](https://img.shields.io/npm/dw/tough-cookie-file-store.svg)](https://npmcharts.com/compare/tough-cookie-file-store?minimal=true)
-[![Build Status](https://travis-ci.org/ivanmarban/tough-cookie-file-store.svg?branch=develop)](https://travis-ci.org/ivanmarban/tough-cookie-file-store)
-[![Coverage Status](https://coveralls.io/repos/github/ivanmarban/tough-cookie-file-store/badge.svg?branch=develop)](https://coveralls.io/github/ivanmarban/tough-cookie-file-store?branch=develop)
+[![Build Status](https://travis-ci.org/ivanmarban/tough-cookie-file-store.svg?branch=master)](https://travis-ci.org/ivanmarban/tough-cookie-file-store)
+[![Coverage Status](https://coveralls.io/repos/github/ivanmarban/tough-cookie-file-store/badge.svg?branch=master)](https://coveralls.io/github/ivanmarban/tough-cookie-file-store?branch=master)
 [![dependencies Status](https://david-dm.org/ivanmarban/tough-cookie-file-store/status.svg)](https://david-dm.org/ivanmarban/tough-cookie-file-store)
 [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=4DELQKMDMDQY4)
 
 ## Installation
 ``` sh
