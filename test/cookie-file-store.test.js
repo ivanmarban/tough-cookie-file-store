@@ -156,6 +156,15 @@ describe('Test cookie-file-store', function () {
       })
       done()
     })
+
+    it('Should not find cookies matching the given domain and path (no domain)', function (done) {
+      cookieStore.findCookies(null, '/', null, function (error, cookies) {
+        expect(error).to.eq(null)
+        expect(cookies).to.be.an('array')
+        expect(cookies).to.have.lengthOf(0)
+      })
+      done()
+    })
   })
 
   describe('#putCookie', function () {
