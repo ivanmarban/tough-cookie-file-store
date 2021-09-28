@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v2.0.3] - 2020-09-28
+### Changed
+- Replaced Travis CI by Github Actions
+
 ## [v2.0.2] - 2020-05-16
 ### Fixed
 - [#9][1] missed inspect rename from b27a42bc
@@ -49,7 +53,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v1.0.0] - 2016-02-10
 - Initial version.
 
-[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.2...develop
+[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.3...develop
+[v2.0.2]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.2...v2.0.3
 [v2.0.2]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.1...v2.0.2
 [v2.0.1]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.0...v2.0.1
 [v2.0.0]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v1.2.0...v2.0.0
