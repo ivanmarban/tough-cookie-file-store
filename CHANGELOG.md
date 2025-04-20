@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v3.0.0] - 2025-04-20
+### Added
+- `tough-cookie@5` support.
+
 ## [v2.0.3] - 2020-09-28
 ### Changed
 - Replaced Travis CI by Github Actions
@@ -53,8 +57,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v1.0.0] - 2016-02-10
 - Initial version.
 
-[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.3...develop
-[v2.0.2]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.2...v2.0.3
+[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.0...master
+[v3.0.0]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.3...v3.0.0
+[v2.0.3]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.2...v2.0.3
 [v2.0.2]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.1...v2.0.2
 [v2.0.1]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.0...v2.0.1
 [v2.0.0]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v1.2.0...v2.0.0
