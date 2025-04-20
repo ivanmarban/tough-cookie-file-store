@@ -1,20 +1,26 @@
-const chai = require('chai')
-const should = require('chai').should()
-const expect = require('chai').expect
-const fs = require('fs')
-const path = require('path')
-const { Cookie, Store } = require('tough-cookie')
-chai.use(require('chai-datetime'))
+/* eslint-env jest */
+
+import FileCookieStore from '../lib/cookie-file-store.js'
+import { fileURLToPath } from 'url'
+import { Cookie, Store } from 'tough-cookie'
+import { expect, should } from 'chai'
+import * as chai from 'chai'
+import chaiDatetime from 'chai-datetime'
+import fs from 'fs'
+import path from 'path'
 let cookieStore
-const FileCookieStore = require('../lib/cookie-file-store').FileCookieStore
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 const cookiesFile = path.join(__dirname, '/cookies.json')
 const cookiesFileParseError = path.join(__dirname, '/cookies-parse-error.json')
 const cookiesFileEmpty = path.join(__dirname, '/cookies-empty.json')
 const expiresDate = new Date('Fri Jan 01 2021 10:00:00 GMT')
 const creationDate = new Date('Wed, Jan 2020 10:00:00 GMT')
 const lastAccessedDate = creationDate
+chai.use(chaiDatetime)
+should()
 
-describe('Test cookie-file-store', function () {
+describe('Test cookie-file-store', () => {
   beforeEach(function () {
     cookieStore = new FileCookieStore(cookiesFile)
   })
@@ -140,7 +146,7 @@ describe('Test cookie-file-store', function () {
     })
 
     it('Should not find cookies matching the given domain and path (no domain)', function (done) {
-      cookieStore.findCookies(null, '/', function (error, cookies) {
+      cookieStore.findCookies('', '/', function (error, cookies) {
         expect(error).to.eq(null)
         expect(cookies).to.be.an('array')
         expect(cookies).to.have.lengthOf(0)
@@ -148,8 +154,8 @@ describe('Test cookie-file-store', function () {
       done()
     })
 
-    it('Should not find cookies matching the given domain (.local domain)', function (done) {
-      cookieStore.findCookies('.local', '/', function (error, cookies) {
+    it('Should not find cookies matching the given domain (.co domain)', function (done) {
+      cookieStore.findCookies('.co', '/', function (error, cookies) {
         expect(error).to.eq(null)
         expect(cookies).to.be.an('array')
         expect(cookies).to.have.lengthOf(0)
@@ -158,7 +164,7 @@ describe('Test cookie-file-store', function () {
     })
 
     it('Should not find cookies matching the given domain and path (no domain)', function (done) {
-      cookieStore.findCookies(null, '/', null, function (error, cookies) {
+      cookieStore.findCookies('', '/', null, function (error, cookies) {
         expect(error).to.eq(null)
         expect(cookies).to.be.an('array')
         expect(cookies).to.have.lengthOf(0)
@@ -168,7 +174,7 @@ describe('Test cookie-file-store', function () {
   })
 
   describe('#putCookie', function () {
-    after(function () {
+    afterAll(function () {
       fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
     })
 
@@ -218,7 +224,7 @@ describe('Test cookie-file-store', function () {
   })
 
   describe('#updateCookie', function () {
-    after(function () {
+    afterAll(function () {
       const cookie = Cookie.parse('foo=foo; Domain=example.com; Path=/')
       cookie.expires = expiresDate
       cookie.creation = creationDate
@@ -321,7 +327,7 @@ describe('Test cookie-file-store', function () {
   })
 
   describe('#getAllCookies', function () {
-    after(function () {
+    afterAll(function () {
       fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
     })
 
