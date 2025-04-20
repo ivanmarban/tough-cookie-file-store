@@ -18,7 +18,7 @@ $ npm install tough-cookie-file-store
 
 ## Usage
 ``` js
-import { CookieJar, Cookie} from 'tough-cookie'
+import { CookieJar, Cookie } from 'tough-cookie'
 import FileCookieStore from 'tough-cookie-file-store'
 const cookieJar = new CookieJar(new FileCookieStore('./cookie.json'))
 const cookie = Cookie.parse('foo=bar; Domain=example.com; Path=/')
