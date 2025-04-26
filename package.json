@@ -28,7 +28,7 @@
     "tough-cookie": "^5.0.0"
   },
   "type": "module",
-  "main": "lib/cookie-file-store",
+  "main": "lib/cookie-file-store.js",
   "engines": {
     "node": ">=16"
   },
