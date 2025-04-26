@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v3.0.1] - 2025-04-26
+### Fix
+- [#21][2] Use explicit extension to address Node error
+
 ## [v3.0.0] - 2025-04-20
 ### Added
 - `tough-cookie@5` support.
 
 ## [v2.0.3] - 2020-09-28
 ### Changed
-- Replaced Travis CI by Github Actions
+- Replaced Travis CI by GitHub Actions
 
 ## [v2.0.2] - 2020-05-16
 ### Fixed
@@ -57,7 +61,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v1.0.0] - 2016-02-10
 - Initial version.
 
-[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.0...master
+[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.1...master
+[v3.0.1]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.0...v3.0.1
 [v3.0.0]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.3...v3.0.0
 [v2.0.3]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.2...v2.0.3
 [v2.0.2]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.1...v2.0.2
@@ -69,3 +74,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 [v1.0.0]: https://github.com/ivanmarban/tough-cookie-file-store/releases/tag/v1.0.0
 [0]: https://github.com/ivanmarban/tough-cookie-file-store/issues/7
 [1]: https://github.com/ivanmarban/tough-cookie-file-store/pull/9
+[2]: https://github.com/ivanmarban/tough-cookie-file-store/pull/21

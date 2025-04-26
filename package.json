@@ -1,7 +1,7 @@
 {
   "name": "tough-cookie-file-store",
   "description": "A JSON file store for tough-cookie module",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "author": "Ivan Marban",
   "homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
   "repository": {
