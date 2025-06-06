@@ -1,7 +1,7 @@
 {
   "name": "tough-cookie-file-store",
   "description": "A JSON file store for tough-cookie module",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "author": "Ivan Marban",
   "homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
   "repository": {
@@ -29,13 +29,15 @@
   },
   "type": "module",
   "main": "lib/cookie-file-store.js",
+  "types" : "types/cookie-file-store.d.ts",
   "engines": {
     "node": ">=16"
   },
   "scripts": {
     "lint": "eslint lib test --color",
     "lint:fix": "eslint lib test --fix",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "ts:types": "tsc"
   },
   "license": "MIT",
   "devDependencies": {
@@ -44,6 +46,7 @@
     "eslint": "^8.57.1",
     "eslint-plugin-jsdoc": "^50.6.9",
     "jest": "^29.7.0",
-    "standard": "^17.1.2"
+    "standard": "^17.1.2",
+    "typescript": "^5.8.3"
   }
 }

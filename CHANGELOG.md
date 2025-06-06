@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v3.0.2] - 2025-06-06
+### Added
+- Built-in typescript types
+
 ## [v3.0.1] - 2025-04-26
 ### Fix
 - [#21][2] Use explicit extension to address Node error
@@ -61,7 +65,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v1.0.0] - 2016-02-10
 - Initial version.
 
-[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.1...master
+[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.2...master
+[v3.0.2]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.1...v3.0.2
 [v3.0.1]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.0...v3.0.1
 [v3.0.0]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.3...v3.0.0
 [v2.0.3]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v2.0.2...v2.0.3
