@@ -1,6 +1,18 @@
-import { Store, permuteDomain, pathMatch, Cookie } from 'tough-cookie'
-import fs from 'fs'
-import util from 'util'
+import { Store, permuteDomain, pathMatch, Cookie, Callback, Nullable } from 'tough-cookie';
+import fs from 'fs';
+import util from 'util';
+
+export type CookiesMap = {
+  [key: string]: Cookie;
+};
+
+export type CookiesDomainData = {
+  [path: string]: CookiesMap;
+};
+
+export type CookiesData = {
+  [domain: string]: CookiesDomainData;
+};
 
 /**
  * Class representing a JSON file store.
@@ -8,52 +20,156 @@ import util from 'util'
  * @augments Store
  */
 export default class FileCookieStore extends Store {
+  synchronous: boolean;
+  filePath: string;
+  idx: CookiesData = {};
+  private _readPromise: Promise<any> | null = null;
+
   /**
    * Creates a new JSON file store in the specified file.
    *
-   * @param {string} filePath - The file in which the store will be created.
-   * @param {{async, onReadError}} options - Options for initializing the store
+   * @param filePath - The file in which the store will be created.
+   * @param options - Options for initializing the store.
+   *                  `async`: whether to read/write asynchronously;
+   *                  `onReadError`: optional callback for file-read errors.
    */
-  constructor (filePath, options) {
-    super()
-    this.synchronous = !options?.async
-    this.idx = {}
-    this.filePath = filePath
-    this._readPromise = null;
-    this._writePromise = null;
-    this._nextWritePromise = null;
-    /* istanbul ignore else  */
+  constructor(
+    filePath: string,
+    options?: {
+      async?: boolean,
+      loadAsync?: boolean,
+      onReadError?: (err: Error) => void
+    }
+  ) {
+    super();
+    this.synchronous = !options?.async;
+    this.filePath = filePath;
+    this.idx = {};
+    // istanbul ignore else
     if (util.inspect.custom) {
-      this[util.inspect.custom] = this._inspect
+      this[util.inspect.custom] = this._inspect;
     }
-    /* istanbul ignore else  */
+    // istanbul ignore else
     if (!filePath) {
-      throw new Error('Unknown file for read/write cookies')
+      throw new Error('Unknown file for read/write cookies');
     }
-    // load the cookies file
-    if(this.synchronous) {
-      const dataJson = this._loadFromFileSync(this.filePath);
-      /* istanbul ignore else  */
-      if (dataJson) {
-        this.idx = dataJson
-      }
-    } else {
-      const readPromise = this._loadFromFile(this.filePath);
-      this._readPromise = readPromise;
-      readPromise.then((dataJson) => {
+    // load from file
+    if (options?.loadAsync) {
+      const promise = this._loadFromFileAsync(this.filePath);
+      this._readPromise = promise;
+      promise.then(dataJson => {
         this._readPromise = null;
-        /* istanbul ignore else  */
         if (dataJson) {
-          this.idx = dataJson
+          this.idx = dataJson;
         }
-      }, (error) => {
+      }).catch(err => {
         this._readPromise = null;
-        if(options?.onReadError) {
-          options.onReadError(error);
+        if (options?.onReadError) {
+          options.onReadError(err);
         } else {
-          console.error(error);
+          console.error(err);
         }
       });
+    } else {
+      const dataJson = this._loadFromFileSync(this.filePath);
+      if (dataJson) {
+        this.idx = dataJson;
+      }
+    }
+  }
+
+  private _doSyncReadAsAsync<TResult>(action: () => TResult, cb: Callback<TResult> | undefined) {
+    if(this._readPromise) {
+      // wait for read promise to finish
+      const promise = this._readPromise
+        .catch(() => {}) // ignore error
+      if(cb) {
+        // handle with callback
+        promise.then(() => {
+          try {
+            let result: TResult;
+            try {
+              result = action();
+            } catch(error) {
+              cb(error, undefined);
+              return;
+            }
+            cb(null, result);
+          } catch(error) {
+            console.error(error);
+          }
+        });
+      } else {
+        // handle with promise
+        return promise.then(() => action());
+      }
+    } else {
+      // do action immediately
+      const result = action();
+      if(cb) {
+        cb(null, result);
+      } else {
+        return Promise.resolve(result);
+      }
+    }
+  }
+
+  _doSyncWriteAsAsync<TResult>(action: () => boolean, cb: ErrorCallback | undefined): (void | Promise<void>) {
+    if(this._readPromise) {
+      // wait for read promise to finish
+      const promise = this._readPromise
+        .catch(() => {}) // ignore error
+      if(cb) {
+        // handle with callback
+        promise.then(() => {
+          let done = false;
+          try {
+            // perform write action
+            if(action()) {
+              // save to file
+              this._saveToFile(this.filePath, this.idx, (error) => {
+                // done
+                if(!done) {
+                  done = true;
+                  cb(error);
+                } else {
+                  console.error(error);
+                }
+              });
+            } else {
+              // no need to save to file, so done
+              done = true;
+              cb(null);
+            }
+          } catch(error) {
+            // only pass error to callback if it hasnt been called yet
+            if(!done) {
+              done = true;
+              cb(error);
+            } else {
+              console.error(error);
+            }
+          }
+        });
+      } else {
+        // handle with promise
+        return promise.then(() => {
+          if(action()) {
+            return this._saveToFile(this.filePath, this.idx);
+          }
+        });
+      }
+    } else {
+      // do action immediately
+      if(action()) {
+        return this._saveToFile(this.filePath, this.idx, cb);
+      } else {
+        if(cb) {
+          cb(null);
+        } else {
+          return Promise.resolve();
+        }
+      }
     }
   }
 
@@ -73,14 +189,31 @@ export default class FileCookieStore extends Store {
    * @param {string} key - The cookie key.
    * @param {FileCookieStore~findCookieCallback} cb - The callback.
    */
-  findCookie (domain, path, key, cb) {
-    if (!this.idx[domain]) {
-      cb(null, undefined)
-    } else if (!this.idx[domain][path]) {
-      cb(null, undefined)
+  findCookie(domain: Nullable<string>, path: Nullable<string>, key: Nullable<string>, cb: Callback<Cookie | null | undefined>): void;
+  findCookie(domain: Nullable<string>, path: Nullable<string>, key: Nullable<string>): Promise<Cookie | null | undefined>;
+  findCookie (domain: Nullable<string>, path: Nullable<string>, key: Nullable<string>, cb?: Callback<Cookie | null | undefined>): (void | Promise<Cookie | null | undefined>) {
+    if(this.synchronous) {
+      const cookie = this._findCookieSync(domain, path, key);
+      if(cb) {
+        cb(null, cookie);
+      } else {
+        return Promise.resolve(cookie);
+      }
     } else {
-      cb(null, this.idx[domain][path][key] || null)
+      return this._findCookieAsync(domain, path, key, cb);
     }
+  }
+
+  private _findCookieAsync(domain: Nullable<string>, path: Nullable<string>, key: Nullable<string>, cb: Callback<Cookie | null | undefined>) {
+    return this._doSyncReadAsAsync(() => this._findCookieSync(domain, path, key), cb);
+  }
+
+  private _findCookieSync(domain: Nullable<string>, path: Nullable<string>, key: Nullable<string>): (Cookie | null | undefined) {
+    const cookiesMap = this.idx[domain]?.[path];
+    if(!cookiesMap) {
+      return undefined;
+    }
+    return cookiesMap[key] || null;
   }
 
   /**
@@ -107,52 +240,70 @@ export default class FileCookieStore extends Store {
    * @param {FileCookieStore~allowSpecialUseDomainCallback} allowSpecialUseDomain - The callback.
    * @param {FileCookieStore~findCookiesCallback} cb - The callback.
    */
-  findCookies (domain, path, allowSpecialUseDomain, cb) {
-    const results = []
-
+  findCookies(domain: Nullable<string>, path: Nullable<string>, allowSpecialUseDomain?: boolean, cb?: Callback<Cookie[]>): void;
+  findCookies(domain: Nullable<string>, path: Nullable<string>, allowSpecialUseDomain?: boolean): Promise<Cookie[]>;
+  findCookies(domain: Nullable<string>, path: Nullable<string>, allowSpecialUseDomain?: boolean, cb?: Callback<Cookie[]>): (Cookie[] | Promise<Cookie[]>) {
     if (typeof allowSpecialUseDomain === 'function') {
-      cb = allowSpecialUseDomain
-      allowSpecialUseDomain = false
+      cb = allowSpecialUseDomain;
+      allowSpecialUseDomain = false;
     }
+    if(this.synchronous) {
+      const cookies = this._findCookiesSync(domain, path, allowSpecialUseDomain);
+      if(cb) {
+        cb(null, cookies);
+      } else {
+        return Promise.resolve(cookies);
+      }
+    } else {
+      return this._findCookiesAsync(domain, path, allowSpecialUseDomain, cb);
+    }
+  }
+
+  private _findCookiesAsync(domain: Nullable<string>, path: Nullable<string>, allowSpecialUseDomain: boolean, cb?: Callback<Cookie[]>): (Cookie[] | Promise<Cookie[]>) {
+    return this._doSyncReadAsAsync(() => this._findCookiesSync(domain, path, allowSpecialUseDomain), cb);
+  }
+
+  private _findCookiesSync(domain: Nullable<string>, path: Nullable<string>, allowSpecialUseDomain: boolean): Cookie[] {
+    const results = [];
 
     if (!domain) {
-      cb(null, [])
+      return results;
     }
 
-    let pathMatcher
+    let pathMatcher: (domainIndex: CookiesDomainData) => void;
     if (!path) {
-      pathMatcher = function matchAll (domainIndex) {
+      pathMatcher = function matchAll (domainIndex: CookiesDomainData) {
         for (const curPath in domainIndex) {
           const pathIndex = domainIndex[curPath]
           for (const key in pathIndex) {
             results.push(pathIndex[key])
           }
         }
-      }
+      };
     } else {
-      pathMatcher = function matchRFC (domainIndex) {
-        Object.keys(domainIndex).forEach(cookiePath => {
+      pathMatcher = function matchRFC (domainIndex: CookiesDomainData) {
+        for(const cookiePath in domainIndex) {
           if (pathMatch(path, cookiePath)) {
-            const pathIndex = domainIndex[cookiePath]
+            const pathIndex = domainIndex[cookiePath];
             for (const key in pathIndex) {
-              results.push(pathIndex[key])
+              results.push(pathIndex[key]);
             }
           }
-        })
-      }
+        }
+      };
     }
 
-    const domains = permuteDomain(domain, allowSpecialUseDomain) || [domain]
-    const idx = this.idx
-    domains.forEach(curDomain => {
-      const domainIndex = idx[curDomain]
+    const domains = permuteDomain(domain, allowSpecialUseDomain) || [domain];
+    const idx = this.idx;
+    for(const curDomain of domains) {
+      const domainIndex = idx[curDomain];
       if (!domainIndex) {
-        return
+        continue;
       }
-      pathMatcher(domainIndex)
-    })
+      pathMatcher(domainIndex);
+    }
 
-    cb(null, results)
+    return results;
   }
 
   /**
@@ -168,17 +319,46 @@ export default class FileCookieStore extends Store {
    * @param {Cookie} cookie - The cookie.
    * @param {FileCookieStore~putCookieCallback} cb - The callback.
    */
-  putCookie (cookie, cb) {
-    if (!this.idx[cookie.domain]) {
-      this.idx[cookie.domain] = {}
+  putCookie(cookie: Cookie, cb: ErrorCallback): void;
+  putCookie(cookie: Cookie): Promise<void>;
+  putCookie(cookie: Cookie, cb?: ErrorCallback): (void | Promise<void>) {
+    if(this.synchronous) {
+      this._putCookieSync(cookie);
+      if(cb) {
+        cb(null);
+      } else {
+        return Promise.resolve();
+      }
+    } else {
+      return this._putCookieAsync(cookie, cb);
     }
-    if (!this.idx[cookie.domain][cookie.path]) {
-      this.idx[cookie.domain][cookie.path] = {}
+  }
+
+  private _putCookieAsync(cookie: Cookie, cb?: ErrorCallback): (void | Promise<void>) {
+    return this._doSyncWriteAsAsync(() => {
+      this._putCookieSyncInternal(cookie);
+      return true;
+    }, cb);
+  }
+
+  private _putCookieSyncInternal(cookie: Cookie) {
+    let changed = false;
+    let domainVal = this.idx[cookie.domain];
+    if (!domainVal) {
+      domainVal = {}
+      this.idx[cookie.domain] = domainVal;
     }
-    this.idx[cookie.domain][cookie.path][cookie.key] = cookie
-    this._saveToFile(this.filePath, this.idx, function (error) {
-      cb(error)
-    })
+    let pathVal = domainVal[cookie.path];
+    if (!pathVal) {
+      pathVal = {};
+      domainVal[cookie.path] = pathVal;
+    }
+    pathVal[cookie.key] = cookie;
+  }
+
+  private _putCookieSync(cookie: Cookie) {
+    this._putCookieSyncInternal(cookie);
+    this._saveToFileSync(this.filePath, this.idx);
   }
 
   /**
@@ -195,8 +375,11 @@ export default class FileCookieStore extends Store {
    * @param {Cookie} newCookie - The new cookie.
    * @param {FileCookieStore~updateCookieCallback} cb - The callback.
    */
-  updateCookie (oldCookie, newCookie, cb) {
-    this.putCookie(newCookie, cb)
+  updateCookie(oldCookie: Cookie, newCookie: Cookie, cb: ErrorCallback): void;
+  updateCookie(oldCookie: Cookie, newCookie: Cookie): Promise<void>;
+  updateCookie(oldCookie: Cookie, newCookie: Cookie, cb?: ErrorCallback): (void | Promise<void>) {
+    // TODO delete old cookie?
+    return this.putCookie(newCookie, cb);
   }
 
   /**
@@ -214,14 +397,40 @@ export default class FileCookieStore extends Store {
    * @param {string} key - The cookie key.
    * @param {FileCookieStore~removeCookieCallback} cb - The callback.
    */
-  removeCookie (domain, path, key, cb) {
-    /* istanbul ignore else  */
-    if (this.idx[domain] && this.idx[domain][path] && this.idx[domain][path][key]) {
-      delete this.idx[domain][path][key]
+  removeCookie(domain: string, path: string, key: string, cb: ErrorCallback): void;
+  removeCookie(domain: string, path: string, key: string): Promise<void>;
+  removeCookie(domain: string, path: string, key: string, cb?: ErrorCallback): (void | Promise<void>) {
+    if(this.synchronous) {
+      this._removeCookieSync(domain, path, key);
+      if(cb) {
+        cb(null);
+      } else {
+        return Promise.resolve();
+      }
+    } else {
+      return this._removeCookieAsync(domain, path, key, cb);
     }
-    this._saveToFile(this.filePath, this.idx, function (error) {
-      cb(error)
-    })
+  }
+
+  private _removeCookieAsync(domain: string, path: string, key: string, cb?: ErrorCallback): (void | Promise<void>) {
+    return this._doSyncWriteAsAsync(() => {
+      return this._removeCookieSyncInternal(domain, path, key);
+    }, cb);
+  }
+
+  private _removeCookieSyncInternal(domain: string, path: string, key: string): boolean {
+    const pathVal = this.idx[domain]?.[path];
+    if (!pathVal) {
+      return false;
+    }
+    const deleted = (delete pathVal[key]);
+    return deleted;
+  }
+
+  private _removeCookieSync(domain: string, path: string, key: string) {
+    if(this._removeCookieSyncInternal(domain, path, key)) {
+      this._saveToFileSync(this.filePath, this.idx);
+    }
   }
 
   /**
@@ -238,18 +447,46 @@ export default class FileCookieStore extends Store {
    * @param {string} path - The cookie path.
    * @param {FileCookieStore~removeCookiesCallback} cb - The callback.
    */
-  removeCookies (domain, path, cb) {
-    /* istanbul ignore else  */
-    if (this.idx[domain]) {
-      if (path) {
-        delete this.idx[domain][path]
+  removeCookies(domain: string, path: Nullable<string>, cb: ErrorCallback): void;
+  removeCookies(domain: string, path: Nullable<string>): Promise<void>;
+  removeCookies(domain: string, path: Nullable<string>, cb?: ErrorCallback): (void | Promise<void>) {
+    if(this.synchronous) {
+      this._removeCookiesSync(domain, path);
+      if(cb) {
+        cb(null);
       } else {
-        delete this.idx[domain]
+        return Promise.resolve();
       }
+    } else {
+      return this._removeCookiesAsync(domain, path, cb);
     }
-    this._saveToFile(this.filePath, this.idx, function (error) {
-      cb(error)
-    })
+  }
+
+  private _removeCookiesAsync(domain: string, path: string, cb?: ErrorCallback): (void | Promise<void>) {
+    return this._doSyncWriteAsAsync(() => {
+      return this._removeCookiesSyncInternal(domain, path);
+    }, cb);
+  }
+
+  private _removeCookiesSyncInternal(domain: string, path: string): boolean {
+    // istanbul ignore else
+    if (path) {
+      const domainVal = this.idx[domain];
+      if(domainVal) {
+        const deleted = (delete domainVal[path]);
+        return deleted;
+      }
+      return false;
+    } else {
+      const deleted = (delete this.idx[domain]);
+      return deleted;
+    }
+  }
+
+  private _removeCookiesSync(domain: string, path: string) {
+    if(this._removeCookiesSyncInternal(domain, path)) {
+      this._saveToFileSync(this.filePath, this.idx);
+    }
   }
 
   /**
@@ -264,11 +501,36 @@ export default class FileCookieStore extends Store {
    *
    * @param {FileCookieStore~removeAllCookiesCallback} cb - The callback.
    */
-  removeAllCookies (cb) {
-    this.idx = {}
-    this._saveToFile(this.filePath, this.idx, function (error) {
-      cb(error)
-    })
+  removeAllCookies(cb: ErrorCallback): void;
+  removeAllCookies(): Promise<void>;
+  removeAllCookies(cb?: ErrorCallback): (void | Promise<void>) {
+    if(this.synchronous) {
+      this._removeAllCookiesSync();
+      if(cb) {
+        cb(null);
+      } else {
+        return Promise.resolve();
+      }
+    } else {
+      return this._removeAllCookiesAsync(cb);
+    }
+  }
+
+  private _removeAllCookiesAsync(cb?: ErrorCallback): (void | Promise<void>) {
+    return this._doSyncWriteAsAsync(() => {
+      return this._removeAllCookiesSyncInternal();
+    }, cb);
+  }
+
+  private _removeAllCookiesSyncInternal(): boolean {
+    this.idx = {};
+    return true;
+  }
+
+  private _removeAllCookiesSync() {
+    if(this._removeAllCookiesSyncInternal()) {
+      this._saveToFileSync(this.filePath, this.idx);
+    }
   }
 
   /**
@@ -284,38 +546,53 @@ export default class FileCookieStore extends Store {
    *
    * @param {FileCookieStore~getAllCookiesCallback} cb - The callback.
    */
-  getAllCookies (cb) {
-    const cookies = []
-    const idx = this.idx
+  getAllCookies(cb: Callback<Cookie[]>): void;
+  getAllCookies(): Promise<Cookie[]>;
+  getAllCookies(cb?: Callback<Cookie[]>): (void | Promise<Cookie[]>) {
+    if(this.synchronous) {
+      const cookies = this._getAllCookiesSync();
+      if(cb) {
+        cb(null, cookies);
+      } else {
+        return Promise.resolve(cookies);
+      }
+    } else {
+      return this._getAllCookiesAsync(cb);
+    }
+  }
 
-    const domains = Object.keys(idx)
-    domains.forEach(domain => {
-      const paths = Object.keys(idx[domain])
-      paths.forEach(path => {
-        const keys = Object.keys(idx[domain][path])
-        keys.forEach(key => {
-          /* istanbul ignore else  */
+  private _getAllCookiesAsync(cb?: Callback<Cookie[]>): (void | Promise<Cookie[]>) {
+    return this._doSyncReadAsAsync(() => this._getAllCookiesSync(), cb);
+  }
+
+  private _getAllCookiesSync(): Cookie[] {
+    const cookies: Cookie[] = [];
+    for (const domain in this.idx) {
+      const domainVal = this.idx[domain];
+      for (const p in domainVal) {
+        const pVal = domainVal[p];
+        for (const key in pVal) {
+          const cookie = pVal[key];
           if (key !== null) {
-            cookies.push(idx[domain][path][key])
+            cookies.push(cookie);
           }
-        })
-      })
-    })
+        }
+      }
+    }
 
     cookies.sort((a, b) => {
       return (a.creationIndex || 0) - (b.creationIndex || 0)
-    })
+    });
 
-    cb(null, cookies)
+    return cookies;
   }
 
   /**
    * Returns a string representation of the store object for debugging purposes.
    *
    * @returns {string} - The string representation of the store.
-   * @private
    */
-  _inspect () {
+  private _inspect () {
     return `{ idx: ${util.inspect(this.idx, false, 2)} }`
   }
 
@@ -327,87 +604,75 @@ export default class FileCookieStore extends Store {
    */
 
   /**
-   * Load the store from file.
+   * Load the store from file asynchronously.
    *
    * @param {string} filePath - The file in which the store will be created.
-   * @param {FileCookieStore~loadFromFileCallback} cb - The callback.
-   * @private
    */
-  async _loadFromFileAsync (filePath) {
-    let data = null
-
-    /* istanbul ignore else  */
-    if (await fs.existsSync(filePath)) {
-      data = await util.promisify(fs.readFile)(filePath, 'utf8')
-    }
-
-    return this._processLoadedFile(data);
+  private async _loadFromFileAsync(filePath: string): Promise<CookiesData> {
+    await fs.promises.access(filePath);
+    const data = await fs.promises.readFile(filePath, 'utf8');
+    return this._loadFromStringSync(data, filePath);
   }
 
   /**
-   * Load the store from file.
+   * Load the store from file synchronously.
    *
    * @param {string} filePath - The file in which the store will be created.
-   * @param {FileCookieStore~loadFromFileCallback} cb - The callback.
-   * @private
    */
-  _loadFromFileSync() {
-    let data = null;
-
-    /* istanbul ignore else  */
-    if (fs.existsSync(filePath)) {
-      data = fs.readFileSync(filePath, 'utf8')
+  private _loadFromFileSync(filePath: string): CookiesData {
+    let data: string | null = null;
+    // istanbul ignore else
+    if (fs.existsSync(this.filePath)) {
+      data = fs.readFileSync(filePath, 'utf8');
     }
-
-    return this._processLoadedFile(data);
+    return this._loadFromStringSync(data, filePath);
   }
 
-  _processLoadedFile(data) {
+  private _loadFromStringSync(data: string | null, filePath: string): CookiesData {
+    // istanbul ignore else
     let dataJson = null
-
-    /* istanbul ignore else  */
-    if (data) {
-      try {
-        dataJson = JSON.parse(data)
-      } catch (e) {
-        throw new Error(`Could not parse cookie file ${filePath}. Please ensure it is not corrupted.`)
-      }
+    try {
+      dataJson = JSON.parse(data)
+    } catch (e) {
+      throw new Error(`Could not parse cookie file ${filePath}. Please ensure it is not corrupted.`)
     }
 
-    for (const domainName in dataJson) {
-      for (const pathName in dataJson[domainName]) {
-        for (const cookieName in dataJson[domainName][pathName]) {
-          dataJson[domainName][pathName][cookieName] = Cookie.fromJSON(
-            JSON.stringify(dataJson[domainName][pathName][cookieName])
-          )
+    for (const d of Object.keys(dataJson)) {
+      for (const p of Object.keys(dataJson[d])) {
+        for (const k of Object.keys(dataJson[d][p])) {
+          dataJson[d][p][k] = Cookie.fromJSON(JSON.stringify(dataJson[d][p][k]));
         }
       }
     }
-
     return dataJson;
   }
 
   /**
-   * The saveToFile callback.
-   *
-   * @callback FileCookieStore~saveToFileCallback
-   */
-
-  /**
-   * Saves the store to a file.
+   * Saves the store to a file asynchronously.
    *
    * @param {string} filePath - The file in which the store will be created.
-   * @param {object} data - The data to be saved.
-   * @param {FileCookieStore~saveToFileCallback} cb - The callback.
-   * @private
+   * @param {CookiesData} data - The data to be saved.
    */
-  _saveToFile (filePath, data, cb) {
-    const dataString = JSON.stringify(data)
+  _saveToFile(filePath: string, data: CookiesData, cb?: ErrorCallback): (void | Promise<void>) {
     if(this.synchronous) {
-      fs.writeFileSync(filePath, dataString)
-      cb();
+      this._saveToFileSync(filePath, data);
+      cb?.(null);
     } else {
-      fs.writeFile(filePath, dataString, cb);
+      return this._saveToFileAsync(filePath, data, cb);
     }
+  }
+
+  private _saveToFileAsync(filePath: string, data: CookiesData, cb: (error: Error) => void) {
+    const dataString = JSON.stringify(data);
+    if(cb) {
+      fs.writeFile(filePath, dataString, cb);
+    } else {
+      return util.promisify(fs.writeFile)(filePath, dataString);
+    }
+  }
+
+  private _saveToFileSync(filePath: string, data: CookiesData): void {
+    const dataString = JSON.stringify(data);
+    fs.writeFileSync(filePath, dataString);
   }
 }

@@ -28,8 +28,8 @@
     "tough-cookie": "^5.0.0"
   },
   "type": "module",
-  "main": "lib/cookie-file-store.js",
-  "types" : "types/cookie-file-store.d.ts",
+  "main": "dist/lib/index.js",
+  "types": "dist/lib/index.d.ts",
   "engines": {
     "node": ">=16"
   },
