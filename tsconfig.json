@@ -10,7 +10,6 @@
     "target": "es2017",
     "moduleResolution": "node",
     "sourceMap": true,
-    "allowSyntheticDefaultImports": true,
     "outDir": "dist",
   }
 }
