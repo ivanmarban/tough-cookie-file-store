@@ -37,7 +37,9 @@
     "lint": "eslint lib test --color",
     "lint:fix": "eslint lib test --fix",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-    "ts:types": "tsc"
+    "ts:types": "tsc",
+    "build": "npx tsc",
+    "prepare": "npm run build"
   },
   "license": "MIT",
   "devDependencies": {
