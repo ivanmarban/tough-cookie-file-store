@@ -8,8 +8,9 @@ export default class FileCookieStore extends Store {
      * Creates a new JSON file store in the specified file.
      *
      * @param {string} filePath - The file in which the store will be created.
+     * @param {{async, onReadError}} options - Options for initializing the store
      */
-    constructor(filePath: string);
+    constructor(filePath: string, options?: {async?:boolean});
     idx: {};
     filePath: string;
     /**
