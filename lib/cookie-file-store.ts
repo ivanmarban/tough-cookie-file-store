@@ -23,7 +23,9 @@ export default class FileCookieStore extends Store {
   synchronous: boolean;
   filePath: string;
   idx: CookiesData = {};
-  private _readPromise: Promise<any> | null = null;
+  private _readPromise: Promise<any> | undefined;
+  private _writePromise: Promise<void> | undefined;
+  private _nextWritePromise: Promise<void> | undefined;
 
   /**
    * Creates a new JSON file store in the specified file.
@@ -58,12 +60,12 @@ export default class FileCookieStore extends Store {
       const promise = this._loadFromFileAsync(this.filePath);
       this._readPromise = promise;
       promise.then(dataJson => {
-        this._readPromise = null;
+        delete this._readPromise;
         if (dataJson) {
           this.idx = dataJson;
         }
       }).catch(err => {
-        this._readPromise = null;
+        delete this._readPromise;
         if (options?.onReadError) {
           options.onReadError(err);
         } else {
@@ -127,7 +129,7 @@ export default class FileCookieStore extends Store {
             // perform write action
             if(action()) {
               // save to file
-              this._saveToFile(this.filePath, this.idx, (error) => {
+              this._save((error) => {
                 // done
                 if(!done) {
                   done = true;
@@ -155,14 +157,14 @@ export default class FileCookieStore extends Store {
         // handle with promise
         return promise.then(() => {
           if(action()) {
-            return this._saveToFile(this.filePath, this.idx);
+            return this._save();
           }
         });
       }
     } else {
       // do action immediately
       if(action()) {
-        return this._saveToFile(this.filePath, this.idx, cb);
+        return this._save(cb);
       } else {
         if(cb) {
           cb(null);
@@ -358,7 +360,7 @@ export default class FileCookieStore extends Store {
 
   private _putCookieSync(cookie: Cookie) {
     this._putCookieSyncInternal(cookie);
-    this._saveToFileSync(this.filePath, this.idx);
+    this._saveSync();
   }
 
   /**
@@ -429,7 +431,7 @@ export default class FileCookieStore extends Store {
 
   private _removeCookieSync(domain: string, path: string, key: string) {
     if(this._removeCookieSyncInternal(domain, path, key)) {
-      this._saveToFileSync(this.filePath, this.idx);
+      this._saveSync();
     }
   }
 
@@ -485,7 +487,7 @@ export default class FileCookieStore extends Store {
 
   private _removeCookiesSync(domain: string, path: string) {
     if(this._removeCookiesSyncInternal(domain, path)) {
-      this._saveToFileSync(this.filePath, this.idx);
+      this._saveSync();
     }
   }
 
@@ -529,7 +531,7 @@ export default class FileCookieStore extends Store {
 
   private _removeAllCookiesSync() {
     if(this._removeAllCookiesSyncInternal()) {
-      this._saveToFileSync(this.filePath, this.idx);
+      this._saveSync();
     }
   }
 
@@ -648,21 +650,89 @@ export default class FileCookieStore extends Store {
   }
 
   /**
-   * Saves the store to a file asynchronously.
-   *
-   * @param {string} filePath - The file in which the store will be created.
-   * @param {CookiesData} data - The data to be saved.
+   * Saves the store to its file.
    */
-  _saveToFile(filePath: string, data: CookiesData, cb?: ErrorCallback): (void | Promise<void>) {
+  private _save(cb?: ErrorCallback): (void | Promise<void>) {
     if(this.synchronous) {
-      this._saveToFileSync(filePath, data);
+      this._saveSync();
       cb?.(null);
     } else {
-      return this._saveToFileAsync(filePath, data, cb);
+      return this._saveAsync(cb);
     }
   }
 
-  private _saveToFileAsync(filePath: string, data: CookiesData, cb: (error: Error) => void) {
+  private _saveAsync(cb?: ErrorCallback): (void | Promise<void>) {
+    if(!this._nextWritePromise) {
+      // create next write promise
+      this._nextWritePromise = (async () => {
+        let async = false;
+        // wait for active write to finish if any
+        if(this._writePromise) {
+          // check if write is already done
+          let writeDone = false;
+          const writePromise = this._writePromise.finally(() => {
+            writeDone = true;
+          });
+          if(!writeDone) {
+            async = true;
+          }
+          // wait for write to finish
+          try {
+            await writePromise;
+          } catch(error) {
+            // ignore error
+          }
+        }
+        // delay one frame, in case of multiple writes
+        if(!async) {
+          await new Promise<void>((resolve, reject) => {
+            setTimeout(() => {
+              // this is now the active write, so update the write promises
+              this._writePromise = this._nextWritePromise;
+              this._nextWritePromise = undefined;
+              resolve();
+            }, 0);
+          });
+        }
+        // save to the file
+        try {
+          await this._saveToFileAsync(this.filePath, this.idx);
+        } finally {
+          // clear write promise
+          this._writePromise = undefined;
+        }
+      })();
+    }
+    // wait for next write promise
+    if(cb) {
+      this._nextWritePromise
+        .then(() => {
+          cb(null);
+        }, (error) => {
+          cb(error);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+      return;
+    } else {
+      return this._nextWritePromise;
+    }
+  }
+
+  private _saveSync() {
+    this._saveToFileSync(this.filePath, this.idx);
+    if(this._writePromise) {
+      // since we're actively writing, also save async to ensure file gets written correctly
+      this._saveAsync((error) => {
+        if(error) {
+          console.error(error);
+        }
+      });
+    }
+  }
+
+  private _saveToFileAsync(filePath: string, data: CookiesData, cb?: (error: Error) => void) {
     const dataString = JSON.stringify(data);
     if(cb) {
       fs.writeFile(filePath, dataString, cb);
