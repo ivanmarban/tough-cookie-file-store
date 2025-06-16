@@ -693,6 +693,10 @@ export default class FileCookieStore extends Store {
               resolve();
             }, 0);
           });
+        } else {
+          // this is now the active write, so update the write promises
+          this._writePromise = this._nextWritePromise;
+          this._nextWritePromise = undefined;
         }
         // save to the file
         try {
