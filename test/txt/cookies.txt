@@ -1,0 +1,6 @@
+# Netscape HTTP Cookie File
+# http://www.netscape.com/newsref/std/cookie_spec.html
+# This is a generated file!  Do not edit.
+
+.example.com	TRUE	/	FALSE	1609495200	foo	foo
+#HttpOnly_.example.com	TRUE	/login	TRUE	1609502400	bar	bar

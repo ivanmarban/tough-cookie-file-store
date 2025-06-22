@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import FileCookieStore from '../dist/cookie-file-store'
+import FileCookieStore, { DefaultFileFormat, FileFormat } from '../dist/cookie-file-store'
 import { fileURLToPath } from 'url'
 import { Cookie, Store } from 'tough-cookie'
 import { expect, should } from 'chai'
@@ -9,17 +9,37 @@ import chaiDatetime from 'chai-datetime'
 import fs from 'fs'
 import path from 'path'
 let cookieStore
-let cookieStoreOptions
+let cookiesFileParseError
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const cookiesFile = path.join(__dirname, '/cookies.json')
-const cookiesFileParseError = path.join(__dirname, '/cookies-parse-error.json')
-const cookiesFileEmpty = path.join(__dirname, '/cookies-empty.json')
+let cookiesFile
+let cookiesFileEmpty
+let cookiesFileEmptyContent
 const expiresDate = new Date('Fri Jan 01 2021 10:00:00 GMT')
 const creationDate = new Date('Wed, Jan 2020 10:00:00 GMT')
 const lastAccessedDate = creationDate
 chai.use(chaiDatetime)
 should()
+
+/**
+ * Sets the cookies file paths to use the json files
+ */
+function useJsonCookieFiles () {
+  cookiesFile = path.join(__dirname, 'json/cookies.json')
+  cookiesFileEmpty = path.join(__dirname, 'json/cookies-empty.json')
+  cookiesFileParseError = path.join(__dirname, 'json/cookies-parse-error.json')
+  cookiesFileEmptyContent = '{}'
+}
+
+/**
+ * Sets the cookies file paths to use the txt files
+ */
+function useTxtCookieFiles () {
+  cookiesFile = path.join(__dirname, 'txt/cookies.txt')
+  cookiesFileEmpty = path.join(__dirname, 'txt/cookies-empty.txt')
+  cookiesFileParseError = path.join(__dirname, 'txt/cookies-parse-error.txt')
+  cookiesFileEmptyContent = ''
+}
 
 /**
  * Calls a callback method in the cookie store, and asserts that it was called synchronously or asynchronously
@@ -142,11 +162,12 @@ function resolverForCount (count, done) {
 
 /**
  * Defines the common tests for a cookie store
+ * @param {FileCookieStoreOptions} cookieStoreOptions - The cookie store options being used for the tests
  */
-function fileCookieStoreTests () {
+function fileCookieStoreTests (cookieStoreOptions) {
   describe('#constructor', function () {
     afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+      fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
     })
 
     it('FileCookieStore should be instance of Store class', function (done) {
@@ -164,45 +185,15 @@ function fileCookieStoreTests () {
       done()
     })
 
-    it('Should throw an error when file cannot be parsed', function (done) {
-      if (cookieStoreOptions?.loadAsync) {
-        ;(() => new FileCookieStore(cookiesFileParseError, {
-          ...cookieStoreOptions,
-          onLoad: callbackFunc(done, () => {
-            cookieStoreOptions?.onLoad?.()
-            done(new Error("Load didn't fail"))
-          }),
-          onLoadError: callbackFunc(done, (error) => {
-            try {
-              expect(error).to.be.instanceof(Error)
-              cookieStoreOptions?.onLoadError?.(error)
-            } catch (error) {
-              done(error)
-              return
-            }
-            done()
-          })
-        }))()
-      } else {
-        ;(() => new FileCookieStore(cookiesFileParseError, cookieStoreOptions)).should.throw(Error, /Could not parse cookie/)
-        done()
-      }
-    })
-
     it('Should load cookie file successfully', function (done) {
       if (cookieStoreOptions?.loadAsync) {
         let detached = false
         ;(() => new FileCookieStore(cookiesFileEmpty, {
           ...cookieStoreOptions,
           onLoad: callbackFunc(done, (exists) => {
-            try {
-              expect(detached).to.eq(true)
-              expect(exists).to.eq(true)
-              cookieStoreOptions?.onLoad?.()
-            } catch (error) {
-              done(error)
-              return
-            }
+            expect(detached).to.eq(true)
+            expect(exists).to.eq(true)
+            cookieStoreOptions?.onLoad?.()
             done()
           }),
           onLoadError: callbackFunc(done, (error) => {
@@ -224,15 +215,13 @@ function fileCookieStoreTests () {
         cookieStore = new FileCookieStore(nonexistantCookiesFile, {
           ...cookieStoreOptions,
           onLoad: callbackFunc(done, (exists) => {
-            try {
-              expect(detached).to.eq(true)
-              expect(exists).to.eq(false)
-              expect(Object.keys(cookieStore.idx).length).to.eq(0)
-              cookieStoreOptions?.onLoad?.()
-            } catch (error) {
-              done(error)
-              return
+            expect(detached).to.eq(true)
+            expect(exists).to.eq(false)
+            expect(Object.keys(cookieStore.idx).length).to.eq(0)
+            if (!cookieStoreOptions?.fileFormat) {
+              expect(cookieStore.fileFormat).to.eq(DefaultFileFormat)
             }
+            cookieStoreOptions?.onLoad?.()
             done()
           }),
           onLoadError: callbackFunc(done, (error) => {
@@ -242,12 +231,10 @@ function fileCookieStoreTests () {
         })
         detached = true
       } else {
-        try {
-          cookieStore = new FileCookieStore(nonexistantCookiesFile, cookieStoreOptions)
-          expect(Object.keys(cookieStore.idx).length).to.eq(0)
-        } catch (error) {
-          done(error)
-          return
+        cookieStore = new FileCookieStore(nonexistantCookiesFile, cookieStoreOptions)
+        expect(Object.keys(cookieStore.idx).length).to.eq(0)
+        if (!cookieStoreOptions?.fileFormat) {
+          expect(cookieStore.fileFormat).to.eq(DefaultFileFormat)
         }
         done()
       }
@@ -260,15 +247,10 @@ function fileCookieStoreTests () {
         cookieStore = new FileCookieStore(cookiesFileEmpty, {
           ...cookieStoreOptions,
           onLoad: callbackFunc(done, (exists) => {
-            try {
-              expect(detached).to.eq(true)
-              expect(exists).to.eq(true)
-              expect(Object.keys(cookieStore.idx).length).to.eq(0)
-              cookieStoreOptions?.onLoad?.()
-            } catch (error) {
-              done(error)
-              return
-            }
+            expect(detached).to.eq(true)
+            expect(exists).to.eq(true)
+            expect(Object.keys(cookieStore.idx).length).to.eq(0)
+            cookieStoreOptions?.onLoad?.()
             done()
           }),
           onLoadError: callbackFunc(done, (error) => {
@@ -278,18 +260,33 @@ function fileCookieStoreTests () {
         })
         detached = true
       } else {
-        try {
-          cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
-          expect(Object.keys(cookieStore.idx).length).to.eq(0)
-        } catch (error) {
-          done(error)
-          return
-        }
+        cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
+        expect(Object.keys(cookieStore.idx).length).to.eq(0)
         done()
       }
     })
 
-    it('Should throw when json file holds an array', function (done) {
+    it('Should throw an error when file cannot be parsed', function (done) {
+      if (cookieStoreOptions?.loadAsync) {
+        ;(() => new FileCookieStore(cookiesFileParseError, {
+          ...cookieStoreOptions,
+          onLoad: callbackFunc(done, () => {
+            cookieStoreOptions?.onLoad?.()
+            done(new Error("Load didn't fail"))
+          }),
+          onLoadError: callbackFunc(done, (error) => {
+            expect(error).to.be.instanceof(Error)
+            cookieStoreOptions?.onLoadError?.(error)
+            done()
+          })
+        }))()
+      } else {
+        ;(() => new FileCookieStore(cookiesFileParseError, cookieStoreOptions)).should.throw(Error)
+        done()
+      }
+    })
+
+    it('Should throw when file holds a json array', function (done) {
       fs.writeFileSync(cookiesFileEmpty, '[]', { encoding: 'utf8', flag: 'w' })
       if (cookieStoreOptions?.loadAsync) {
         ;(() => new FileCookieStore(cookiesFileEmpty, {
@@ -299,23 +296,18 @@ function fileCookieStoreTests () {
             done(new Error("Load didn't fail"))
           }),
           onLoadError: callbackFunc(done, (error) => {
-            try {
-              expect(error).to.be.instanceof(Error)
-              cookieStoreOptions?.onLoadError?.(error)
-            } catch (error) {
-              done(error)
-              return
-            }
+            expect(error).to.be.instanceof(Error)
+            cookieStoreOptions?.onLoadError?.(error)
             done()
           })
         }))()
       } else {
-        ;(() => new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)).should.throw(Error, /[Ii]nvalid/)
+        ;(() => new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)).should.throw(Error)
         done()
       }
     })
 
-    it('Should throw when json file holds a boolean', function (done) {
+    it('Should throw when file holds a json boolean', function (done) {
       fs.writeFileSync(cookiesFileEmpty, 'true', { encoding: 'utf8', flag: 'w' })
       if (cookieStoreOptions?.loadAsync) {
         ;(() => new FileCookieStore(cookiesFileEmpty, {
@@ -325,21 +317,88 @@ function fileCookieStoreTests () {
             done(new Error("Load didn't fail"))
           }),
           onLoadError: callbackFunc(done, (error) => {
-            try {
-              expect(error).to.be.instanceof(Error)
-              cookieStoreOptions?.onLoadError?.(error)
-            } catch (error) {
-              done(error)
-              return
-            }
+            expect(error).to.be.instanceof(Error)
+            cookieStoreOptions?.onLoadError?.(error)
             done()
           })
         }))()
       } else {
-        ;(() => new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)).should.throw(Error, /[Ii]nvalid/)
+        ;(() => new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)).should.throw(Error)
         done()
       }
     })
+
+    if (!cookieStoreOptions?.fileFormat) {
+      it('Should throw when loading an unknown file format', function (done) {
+        const opts = {
+          ...cookieStoreOptions,
+          fileFormat: 'o836rex2f'
+        }
+        if (cookieStoreOptions?.loadAsync) {
+          ;(() => new FileCookieStore(cookiesFileEmpty, {
+            ...opts,
+            onLoad: callbackFunc(done, () => {
+              cookieStoreOptions?.onLoad?.()
+              done(new Error("Load didn't fail"))
+            }),
+            onLoadError: callbackFunc(done, (error) => {
+              expect(error).to.be.instanceof(Error)
+              cookieStoreOptions?.onLoadError?.(error)
+              done()
+            })
+          }))()
+        } else {
+          ;(() => new FileCookieStore(cookiesFileEmpty, opts)).should.throw(Error)
+          done()
+        }
+      })
+    }
+
+    if (cookieStoreOptions?.fileFormat === FileFormat.txt) {
+      it('Should continue parsing when forceParse is true', function (done) {
+        let errorCount = 0
+        const opts = {
+          ...cookieStoreOptions,
+          forceParse: true,
+          onLoadLineError: (line, lineNumber) => {
+            cookieStoreOptions?.onLoadLineError?.(line, lineNumber)
+            errorCount++
+          }
+        }
+        if (opts?.loadAsync) {
+          ;(() => new FileCookieStore(cookiesFileParseError, {
+            ...opts,
+            onLoad: callbackFunc(done, (exists) => {
+              expect(exists).to.eq(true)
+              expect(errorCount).to.eq(1)
+              opts?.onLoad?.()
+              done()
+            }),
+            onLoadError: callbackFunc(done, (error) => {
+              opts?.onLoadError?.(error)
+              done(error)
+            })
+          }))()
+        } else {
+          ;(() => new FileCookieStore(cookiesFileParseError, opts)).should.not.throw(Error)
+          expect(errorCount).to.eq(1)
+          done()
+        }
+      })
+
+      it('Should not load HttpOnly cookies when extension is disabled', function (done) {
+        cookieStore = new FileCookieStore(cookiesFile, {
+          ...cookieStoreOptions,
+          httpOnlyExtension: false
+        })
+        cookieStore.getAllCookies(callbackFunc(done, (error, cookies) => {
+          expect(error).to.eq(null)
+          expect(cookies).to.be.instanceof(Array)
+          expect(cookies.length).to.eq(1)
+          done()
+        }))
+      })
+    }
   })
 
   describe('#inspect', function () {
@@ -364,8 +423,10 @@ function fileCookieStoreTests () {
         expect(cookie.domain).to.eq('example.com')
         expect(cookie.path).to.eq('/')
         expect(cookie.hostOnly).to.eq(false)
-        expect(cookie.creation).to.equalDate(creationDate)
-        expect(cookie.lastAccessed).to.equalDate(lastAccessedDate)
+        if (cookieStore.fileFormat !== FileFormat.txt) {
+          expect(cookie.creation).to.equalDate(creationDate)
+          expect(cookie.lastAccessed).to.equalDate(lastAccessedDate)
+        }
         done()
       }))
     })
@@ -408,8 +469,10 @@ function fileCookieStoreTests () {
         expect(cookies[0].domain).to.eq('example.com')
         expect(cookies[0].path).to.eq('/')
         expect(cookies[0].hostOnly).to.eq(false)
-        expect(cookies[0].creation).to.equalDate(creationDate)
-        expect(cookies[0].lastAccessed).to.equalDate(lastAccessedDate)
+        if (cookieStore.fileFormat !== FileFormat.txt) {
+          expect(cookies[0].creation).to.equalDate(creationDate)
+          expect(cookies[0].lastAccessed).to.equalDate(lastAccessedDate)
+        }
         done()
       }))
     })
@@ -426,8 +489,10 @@ function fileCookieStoreTests () {
         expect(cookies[1].domain).to.eq('example.com')
         expect(cookies[1].path).to.eq('/login')
         expect(cookies[1].hostOnly).to.eq(false)
-        expect(cookies[1].creation).to.equalDate(creationDate)
-        expect(cookies[1].lastAccessed).to.equalDate(lastAccessedDate)
+        if (cookieStore.fileFormat !== FileFormat.txt) {
+          expect(cookies[1].creation).to.equalDate(creationDate)
+          expect(cookies[1].lastAccessed).to.equalDate(lastAccessedDate)
+        }
         done()
       }))
     })
@@ -471,7 +536,7 @@ function fileCookieStoreTests () {
 
   storeMethodTests('putCookie', function (putCookie) {
     afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+      fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
     })
 
     it('Should add a new "baz" cookie to the store', function (done) {
@@ -489,8 +554,10 @@ function fileCookieStoreTests () {
           expect(cookie.expires).to.equalDate(expiresDate)
           expect(cookie.domain).to.eq('example.com')
           expect(cookie.path).to.eq('/')
-          expect(cookie.creation).to.equalDate(creationDate)
-          expect(cookie.lastAccessed).to.equalDate(lastAccessedDate)
+          if (cookieStore.fileFormat !== FileFormat.txt) {
+            expect(cookie.creation).to.equalDate(creationDate)
+            expect(cookie.lastAccessed).to.equalDate(lastAccessedDate)
+          }
           cookieStore.removeCookie('example.com', '/', 'baz', callbackFunc(done, () => {
             done()
           }))
@@ -527,8 +594,10 @@ function fileCookieStoreTests () {
           expect(cookie.expires).to.equalDate(expiresDate)
           expect(cookie.domain).to.eq('example.com')
           expect(cookie.path).to.eq('/')
-          expect(cookie.creation).to.equalDate(creationDate)
-          expect(cookie.lastAccessed).to.equalDate(lastAccessedDate)
+          if (cookieStore.fileFormat !== FileFormat.txt) {
+            expect(cookie.creation).to.equalDate(creationDate)
+            expect(cookie.lastAccessed).to.equalDate(lastAccessedDate)
+          }
           done()
         }))
       }))
@@ -537,7 +606,7 @@ function fileCookieStoreTests () {
 
   storeMethodTests('removeCookie', function (removeCookie) {
     afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+      fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
     })
 
     it('Removing a cookie that doesn\'t exist shouldn\'t cause a file write', function (done) {
@@ -602,7 +671,7 @@ function fileCookieStoreTests () {
 
   storeMethodTests('removeCookies', function (removeCookies) {
     afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+      fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
     })
 
     it('Removing the only cookie should cause idx to be empty', function (done) {
@@ -674,7 +743,7 @@ function fileCookieStoreTests () {
 
   storeMethodTests('removeAllCookies', function (removeAllCookies) {
     afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+      fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
     })
 
     it('Clearing an empty store shouldn\'t cause a file write', function (done) {
@@ -741,7 +810,7 @@ function fileCookieStoreTests () {
 
   storeMethodTests('getAllCookies', function (getAllCookies) {
     afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
+      fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
     })
 
     it('Should return an "Array" of cookies', function (done) {
@@ -770,214 +839,274 @@ function fileCookieStoreTests () {
       }))
     })
   })
-}
 
-/**
- * Defines the tests for the async version of the cookie store
- */
-function fileCookieStoreAsyncTests () {
   describe('#_save', function () {
-    afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
-    })
+    if (!cookieStoreOptions?.fileFormat && cookieStoreOptions?.loadAsync) {
+      it('Should throw when saving an unknown file format', function (done) {
+        cookieStore = new FileCookieStore(cookiesFileEmpty, {
+          ...cookieStoreOptions,
+          fileFormat: 'ed287tb',
+          onLoadError: (error) => {
+            cookieStoreOptions?.onLoadError?.(error)
+          }
+        })
+        const buzCookie = Cookie.parse('buz=buz; Domain=example.com; Path=/buz')
+        cookieStore.putCookie(buzCookie, callbackFunc(done, (error) => {
+          expect(error).to.be.instanceof(Error)
+          done()
+        }))
+      })
+    }
+    if (!cookieStoreOptions?.fileFormat && cookieStoreOptions?.loadAsync) {
+      it('Should throw when saving a file with no determined format that failed to load', function (done) {
+        cookieStore = new FileCookieStore(cookiesFileParseError, {
+          ...cookieStoreOptions,
+          onLoad: callbackFunc(done, () => {
+            cookieStoreOptions?.onLoad?.()
+            done(new Error("Load didn't fail"))
+          }),
+          onLoadError: callbackFunc(done, (error) => {
+            expect(error).to.be.instanceof(Error)
+            cookieStoreOptions?.onLoadError?.(error)
+            const buzCookie = Cookie.parse('buz=buz; Domain=example.com; Path=/buz')
+            cookieStore.putCookie(buzCookie, callbackFunc(done, (error) => {
+              expect(error).to.be.instanceof(Error)
+              done()
+            }))
+          })
+        })
+      })
+    }
+    if (cookieStoreOptions?.async) {
+      afterAll(function () {
+        fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
+      })
 
-    it('Writing, once read promise is finished, after switching from async to sync after a delay, should cause 2 async file writes and 1 sync file write', function (done) {
-      cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
-      // read cookies to make sure that read promise is done
-      cookieStore.getAllCookies(callbackFunc(done, (error) => {
-        expect(error).to.eq(null)
-        // hook async / sync file writes
-        let asyncSaveCount = 0
-        let syncSaveCount = 0
-        const resolveOne = resolverForCount(3, () => {
+      it('Writing, once read promise is finished, after switching from async to sync after a delay, should cause 2 async file writes and 1 sync file write', function (done) {
+        cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
+        // read cookies to make sure that read promise is done
+        cookieStore.getAllCookies(callbackFunc(done, (error) => {
+          expect(error).to.eq(null)
+          // hook async / sync file writes
+          let asyncSaveCount = 0
+          let syncSaveCount = 0
+          const resolveOne = resolverForCount(3, () => {
+            try {
+              expect(syncSaveCount).to.eq(1)
+              expect(asyncSaveCount).to.eq(2)
+            } catch (error) {
+              done(error)
+              return
+            }
+            done()
+          })
+          const innerSaveToFileAsync = cookieStore._saveToFileAsync
+          cookieStore._saveToFileAsync = function (...args) {
+            asyncSaveCount += 1
+            return innerSaveToFileAsync.call(this, ...args)
+          }
+          const innerSaveToFileSync = cookieStore._saveToFileSync
+          cookieStore._saveToFileSync = function (...args) {
+            syncSaveCount += 1
+            return innerSaveToFileSync.call(this, ...args)
+          }
+          // write to store
+          const buzCookie = Cookie.parse('buz=buz; Domain=example.com; Path=/buz')
+          cookieStore.putCookie(buzCookie, callbackFunc(resolveOne, (error) => {
+            expect(error).to.eq(null)
+            resolveOne()
+          }))
+          ;(async () => {
+            // delay
+            await Promise.resolve()
+            // make sure a write promise exists and that only 1 async write has happened
+            try {
+              expect(cookieStore._writePromise != null).to.eq(true)
+              expect(syncSaveCount).to.eq(0)
+              expect(asyncSaveCount).to.eq(1)
+            } catch (error) {
+              done(error)
+              return
+            }
+            // switch to synchronous
+            cookieStore.synchronous = true
+            try {
+              // cause another sync and async file write
+              cookieStore.removeAllCookies(callbackFunc(resolveOne, (error) => {
+                expect(error).to.eq(null)
+                resolveOne()
+              }))
+            } catch (error) {
+              resolveOne(error)
+            }
+            try {
+              cookieStore._nextWritePromise.then(resolveOne, resolveOne)
+            } catch (error) {
+              resolveOne(error)
+            }
+          })()
+        }))
+      })
+    }
+  })
+
+  if (cookieStoreOptions?.async) {
+    describe('#_saveAsync', function () {
+      afterAll(function () {
+        fs.writeFileSync(cookiesFileEmpty, cookiesFileEmptyContent, { encoding: 'utf8', flag: 'w' })
+      })
+
+      it('Multiple calls to mutating methods within tick should only cause a single write', function (done) {
+        let saveCount = 0
+        const resolveOne = resolverForCount(2, () => {
           try {
-            expect(syncSaveCount).to.eq(1)
-            expect(asyncSaveCount).to.eq(2)
+            expect(saveCount).to.eq(1)
           } catch (error) {
             done(error)
             return
           }
           done()
         })
-        const innerSaveToFileAsync = cookieStore._saveToFileAsync
-        cookieStore._saveToFileAsync = function (...args) {
-          asyncSaveCount += 1
-          return innerSaveToFileAsync.call(this, ...args)
-        }
-        const innerSaveToFileSync = cookieStore._saveToFileSync
-        cookieStore._saveToFileSync = function (...args) {
-          syncSaveCount += 1
-          return innerSaveToFileSync.call(this, ...args)
-        }
-        // write to store
-        const buzCookie = Cookie.parse('buz=buz; Domain=example.com; Path=/buz')
-        cookieStore.putCookie(buzCookie, callbackFunc(resolveOne, (error) => {
-          expect(error).to.eq(null)
-          resolveOne()
-        }))
-        ;(async () => {
-          // delay
-          await Promise.resolve()
-          // make sure a write promise exists and that only 1 async write has happened
-          try {
-            expect(cookieStore._writePromise != null).to.eq(true)
-            expect(syncSaveCount).to.eq(0)
-            expect(asyncSaveCount).to.eq(1)
-          } catch (error) {
-            done(error)
-            return
-          }
-          // switch to synchronous
-          cookieStore.synchronous = true
-          try {
-            // cause another sync and async file write
-            cookieStore.removeAllCookies(callbackFunc(resolveOne, (error) => {
-              expect(error).to.eq(null)
-              resolveOne()
-            }))
-          } catch (error) {
-            resolveOne(error)
-          }
-          try {
-            cookieStore._nextWritePromise.then(resolveOne, resolveOne)
-          } catch (error) {
-            resolveOne(error)
-          }
-        })()
-      }))
-    })
-  })
-
-  describe('#_saveAsync', function () {
-    afterAll(function () {
-      fs.writeFileSync(cookiesFileEmpty, '{}', { encoding: 'utf8', flag: 'w' })
-    })
-
-    it('Multiple calls to mutating methods within tick should only cause a single write', function (done) {
-      let saveCount = 0
-      const resolveOne = resolverForCount(2, () => {
-        try {
-          expect(saveCount).to.eq(1)
-        } catch (error) {
-          done(error)
-          return
-        }
-        done()
-      })
-      cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
-      const innerSaveToFileAsync = cookieStore._saveToFileAsync
-      cookieStore._saveToFileAsync = function (...args) {
-        saveCount += 1
-        return innerSaveToFileAsync.call(this, ...args)
-      }
-      const buzCookie = Cookie.parse('buz=buz; Domain=example.com; Path=/buz')
-      cookieStore.putCookie(buzCookie, callbackFunc(resolveOne, (error) => {
-        expect(error).to.eq(null)
-        resolveOne()
-      }))
-      cookieStore.removeAllCookies(callbackFunc(resolveOne, (error) => {
-        expect(error).to.eq(null)
-        resolveOne()
-      }))
-    })
-
-    it('Multiple sequential calls to mutating methods across ticks should cause an equal number of writes', function (done) {
-      let saveCount = 0
-      const resolveOne = resolverForCount(2, () => {
-        try {
-          expect(saveCount).to.eq(2)
-        } catch (error) {
-          done(error)
-          return
-        }
-        done()
-      })
-      cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
-      // read cookies to make sure that read promise is done
-      cookieStore.getAllCookies(callbackFunc(done, (error) => {
-        expect(error).to.eq(null)
-        // count number of times the file is saved
+        cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
         const innerSaveToFileAsync = cookieStore._saveToFileAsync
         cookieStore._saveToFileAsync = function (...args) {
           saveCount += 1
           return innerSaveToFileAsync.call(this, ...args)
         }
-        // add a cookie to the store
         const buzCookie = Cookie.parse('buz=buz; Domain=example.com; Path=/buz')
         cookieStore.putCookie(buzCookie, callbackFunc(resolveOne, (error) => {
           expect(error).to.eq(null)
           resolveOne()
         }))
-        // delay and remove the cookies from the store
-        ;(async () => {
+        cookieStore.removeAllCookies(callbackFunc(resolveOne, (error) => {
+          expect(error).to.eq(null)
+          resolveOne()
+        }))
+      })
+
+      it('Multiple sequential calls to mutating methods across ticks should cause an equal number of writes', function (done) {
+        let saveCount = 0
+        const resolveOne = resolverForCount(2, () => {
           try {
-            await Promise.resolve()
-            cookieStore.removeAllCookies(callbackFunc(resolveOne, (error) => {
-              expect(error).to.eq(null)
-              resolveOne()
-            }))
+            expect(saveCount).to.eq(2)
           } catch (error) {
-            resolveOne(error)
+            done(error)
+            return
           }
-        })()
-      }))
+          done()
+        })
+        cookieStore = new FileCookieStore(cookiesFileEmpty, cookieStoreOptions)
+        // read cookies to make sure that read promise is done
+        cookieStore.getAllCookies(callbackFunc(done, (error) => {
+          expect(error).to.eq(null)
+          // count number of times the file is saved
+          const innerSaveToFileAsync = cookieStore._saveToFileAsync
+          cookieStore._saveToFileAsync = function (...args) {
+            saveCount += 1
+            return innerSaveToFileAsync.call(this, ...args)
+          }
+          // add a cookie to the store
+          const buzCookie = Cookie.parse('buz=buz; Domain=example.com; Path=/buz')
+          cookieStore.putCookie(buzCookie, callbackFunc(resolveOne, (error) => {
+            expect(error).to.eq(null)
+            resolveOne()
+          }))
+          // delay and remove the cookies from the store
+          ;(async () => {
+            try {
+              await Promise.resolve()
+              cookieStore.removeAllCookies(callbackFunc(resolveOne, (error) => {
+                expect(error).to.eq(null)
+                resolveOne()
+              }))
+            } catch (error) {
+              resolveOne(error)
+            }
+          })()
+        }))
+      })
     })
-  })
+  }
 }
 
 // Define the tests for each variant of the cookie store
 describe('Test cookie-file-store', function () {
   // Test synchronous methods without options
   describe('options: undefined', function () {
+    const cookieStoreOptions = undefined
+
     beforeEach(function () {
-      cookieStoreOptions = undefined
+      useJsonCookieFiles()
       cookieStore = new FileCookieStore(cookiesFile, cookieStoreOptions)
       expect(cookieStore.synchronous).to.eq(true)
     })
 
-    fileCookieStoreTests()
+    fileCookieStoreTests(undefined, true)
   })
 
-  // Test synchronous methods
-  describe('options: {async: false}', function () {
-    beforeEach(function () {
-      cookieStoreOptions = {
-        async: false
+  for (const fileFormat of [undefined, FileFormat.json, FileFormat.txt]) {
+    const fileFormatDescr = fileFormat ? `, fileFormat: ${JSON.stringify(fileFormat)}` : ''
+
+    // Test synchronous methods
+    describe(`options: {async: false${fileFormatDescr}}`, function () {
+      const cookieStoreOptions = {
+        async: false,
+        fileFormat
       }
-      cookieStore = new FileCookieStore(cookiesFile, cookieStoreOptions)
-      expect(cookieStore.synchronous).to.eq(true)
+
+      beforeEach(function () {
+        if (fileFormat === FileFormat.txt) {
+          useTxtCookieFiles()
+        } else {
+          useJsonCookieFiles()
+        }
+        cookieStore = new FileCookieStore(cookiesFile, cookieStoreOptions)
+        expect(cookieStore.synchronous).to.eq(true)
+      })
+
+      fileCookieStoreTests(cookieStoreOptions)
     })
 
-    fileCookieStoreTests()
-  })
-
-  // Test asynchronous methods on a store loaded synchronously
-  describe('options: {async: true, loadAsync: false}', function () {
-    beforeEach(function () {
-      cookieStoreOptions = {
+    // Test asynchronous methods on a store loaded synchronously
+    describe(`options: {async: true, loadAsync: false${fileFormatDescr}}`, function () {
+      const cookieStoreOptions = {
         async: true,
-        loadAsync: false
+        loadAsync: false,
+        fileFormat
       }
-      cookieStore = new FileCookieStore(cookiesFile, cookieStoreOptions)
-      expect(cookieStore.synchronous).to.eq(false)
+
+      beforeEach(function () {
+        if (fileFormat === FileFormat.txt) {
+          useTxtCookieFiles()
+        } else {
+          useJsonCookieFiles()
+        }
+        cookieStore = new FileCookieStore(cookiesFile, cookieStoreOptions)
+        expect(cookieStore.synchronous).to.eq(false)
+      })
+
+      fileCookieStoreTests(cookieStoreOptions)
     })
 
-    fileCookieStoreTests()
-    fileCookieStoreAsyncTests()
-  })
-
-  // Test asynchronous methods on a store loaded asynchronously
-  describe('options: {async: true, loadAsync: true}', function () {
-    beforeEach(function () {
-      cookieStoreOptions = {
+    // Test asynchronous methods on a store loaded asynchronously
+    describe(`options: {async: true, loadAsync: true${fileFormatDescr}}`, function () {
+      const cookieStoreOptions = {
         async: true,
-        loadAsync: true
+        loadAsync: true,
+        fileFormat
       }
-      cookieStore = new FileCookieStore(cookiesFile, cookieStoreOptions)
-      expect(cookieStore.synchronous).to.eq(false)
-    })
 
-    fileCookieStoreTests()
-    fileCookieStoreAsyncTests()
-  })
+      beforeEach(function () {
+        if (fileFormat === FileFormat.txt) {
+          useTxtCookieFiles()
+        } else {
+          useJsonCookieFiles()
+        }
+        cookieStore = new FileCookieStore(cookiesFile, cookieStoreOptions)
+        expect(cookieStore.synchronous).to.eq(false)
+      })
+
+      fileCookieStoreTests(cookieStoreOptions)
+    })
+  }
 })

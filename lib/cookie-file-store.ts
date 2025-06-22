@@ -1,24 +1,48 @@
 import * as tough from 'tough-cookie'
 import fs from 'fs'
 import util from 'util'
+import type {
+  CookiesIndex,
+  CookiesDomainData
+} from './cookies-index'
+import { parseCookiesJson, stringifyCookiesJson } from './formats/cookies-json'
+import { parseNetscapeCookiesTxtToIndex, stringifyNetscapeCookiesTxt } from './formats/netscape-cookies-txt'
 
-export type CookiesMap = {
-  [key: string]: tough.Cookie
+export enum FileFormat {
+  json = 'json',
+  txt = 'txt'
 }
 
-export type CookiesDomainData = {
-  [path: string]: CookiesMap
-}
-
-export type CookiesData = {
-  [domain: string]: CookiesDomainData
-}
+export const DefaultFileFormat = FileFormat.json
 
 export type FileCookieStoreOptions = {
+  /// Whether to write the file asynchronously
   async?: boolean
+  /// Whether to write the file asynchronously
   loadAsync?: boolean
+  /// The format of the file. If not specified, the format will be auto-detected.
+  /// If not specified and the file doesn't exist, the format will default to txt.
+  fileFormat?: FileFormat
+  /// Continue parsing the file and if an invalid line was found. This only applies to the txt format.
+  forceParse?: boolean
+  /// Detect the #HttpOnly_ prefix for http only cookies. If false, HttpOnly cookies will not be loaded. This only affects txt parsing. Defaults to true.
+  httpOnlyExtension?: boolean
+  /// Called when the file successfuly loads asynchronously. Unused if `loadAsync` is false.
   onLoad?: (exists: boolean) => void
+  /// Called when an error is encountered on a line of the loaded file. This is only called if forceParse is true, and only for the txt format.
+  onLoadLineError?: (line: string, lineNumber: number) => void
+  /// Optional callback for any async file-load error. Unused if `loadAsync` is false.
   onLoadError?: (err: Error) => void
+}
+
+/**
+ * Internal options for loading a cookies file
+ */
+type LoadOptions = {
+  /// Determines whether to continue parsing the file if an error is encountered. This only applies to the txt format.
+  forceParse: boolean
+  /// Called when an error is encountered on a line of the loaded file. This is only called if forceParse is true, and only for the txt format.
+  onLineError?: (line: string, lineNumber: number) => void
 }
 
 /**
@@ -29,8 +53,12 @@ export type FileCookieStoreOptions = {
 export default class FileCookieStore extends tough.Store {
   synchronous: boolean
   filePath: string
-  idx: CookiesData = {}
-  private _readPromise: Promise<CookiesData | undefined> | undefined
+  fileFormat?: FileFormat
+  idx: CookiesIndex = {}
+
+  httpOnlyExtension: boolean
+
+  private _readPromise: Promise<boolean> | undefined
   private _writePromise: Promise<void> | undefined
   private _nextWritePromise: Promise<void> | undefined
 
@@ -41,6 +69,10 @@ export default class FileCookieStore extends tough.Store {
    * @param {object} options - Options for initializing the store.
    * @param {boolean} options.async - Whether to write the file asynchronously.
    * @param {boolean} options.loadAsync - Whether to read the file asynchronously.
+   * @param {FileFormat} options.fileFormat - The format of the file. If not specified, the format will be auto-detected. If not specified and the file doesn't exist, the format will default to txt.
+   * @param {boolean} options.forceParse - Continue parse file and don't throw exception if a bad line was found. This only applies to the txt format.
+   * @param {boolean} options.httpOnlyExtension - Detect the #HttpOnly_ prefix for http only cookies. Defaults to true.
+   * @param {Function} options.onLoad - Called when the file successfuly loads asynchronously. Unused if `loadAsync` is false.
    * @param {Function} options.onLoadError - Optional callback for any async file-load error. Unused if `loadAsync` is false.
    */
   constructor (
@@ -50,48 +82,47 @@ export default class FileCookieStore extends tough.Store {
     super()
     this.synchronous = !options?.async
     this.filePath = filePath
+    if (options?.fileFormat) {
+      this.fileFormat = options.fileFormat
+    }
     this.idx = {}
+    this.httpOnlyExtension = options?.httpOnlyExtension ?? true
     if (util.inspect.custom) {
       this[util.inspect.custom] = this._inspect
     }
+    // load from file
     if (!filePath) {
       throw new Error('Unknown file for read/write cookies')
     }
-    // load from file
+    const loadOptions: LoadOptions = {
+      forceParse: options?.forceParse ?? false,
+      onLineError: options?.onLoadLineError
+    }
     if (options?.loadAsync) {
-      const promise = this._loadFromFileAsync(this.filePath)
+      const promise = this._loadFromFileAsync(this.filePath, loadOptions)
       this._readPromise = promise
-      promise.then(dataJson => {
+      promise.then((exists) => {
         delete this._readPromise
-        if (dataJson) {
-          this.idx = dataJson
-        }
         // istanbul ignore next
-        if (options?.onLoad) {
-          options.onLoad(dataJson !== undefined)
-        }
-      }, err => {
+        options?.onLoad?.(exists)
+      }, (error) => {
         delete this._readPromise
         // istanbul ignore next
         if (options?.onLoadError) {
-          options.onLoadError(err)
+          options.onLoadError(error)
         } else {
           // istanbul ignore next
-          console.error(err)
+          console.error(error)
         }
-      })
-        .catch(
+      }).catch(
         // istanbul ignore next
-          (error) => {
+        (error) => {
           // istanbul ignore next
-            console.error(error)
-          }
-        )
+          console.error(error)
+        }
+      )
     } else {
-      const dataJson = this._loadFromFileSync(this.filePath)
-      if (dataJson) {
-        this.idx = dataJson
-      }
+      this._loadFromFileSync(this.filePath, loadOptions)
     }
   }
 
@@ -417,15 +448,16 @@ export default class FileCookieStore extends tough.Store {
    */
   private _putCookieSyncInternal (cookie: tough.Cookie): boolean {
     const { domain, path, key } = cookie
+    const canDomain = tough.canonicalDomain(domain)
     // Guarding against invalid input
     // istanbul ignore next
-    if (domain == null || path == null || key == null) {
+    if (canDomain == null || path == null || key == null) {
       return false
     }
-    let domainVal = this.idx[domain]
+    let domainVal = this.idx[canDomain]
     if (!domainVal) {
       domainVal = {}
-      this.idx[domain] = domainVal
+      this.idx[canDomain] = domainVal
     }
     let pathVal = domainVal[path]
     if (!pathVal) {
@@ -723,12 +755,14 @@ export default class FileCookieStore extends tough.Store {
     return cookies
   }
 
+  [util.inspect.custom]: () => string
+
   /**
    * Returns a string representation of the store object for debugging purposes.
    *
    * @returns {string} - The string representation of the store.
    */
-  private _inspect () {
+  private _inspect (): string {
     return `{ idx: ${util.inspect(this.idx, false, 2)} }`
   }
 
@@ -736,76 +770,85 @@ export default class FileCookieStore extends tough.Store {
    * Load the store from a file asynchronously.
    *
    * @param {string} filePath - The file to load the store from.
-   * @returns {Promise<CookiesData>} a promise that resolves with the parsed data from the file.
+   * @param {object} options - Options for loading the file
+   * @returns {Promise<CookiesIndex>} a promise that resolves with the parsed data from the file.
    */
-  private async _loadFromFileAsync (filePath: string): Promise<CookiesData | undefined> {
+  private async _loadFromFileAsync (filePath: string, options: LoadOptions): Promise<boolean> {
     try {
       await fs.promises.access(filePath, fs.constants.F_OK)
     } catch {
-      return undefined
+      if (!this.fileFormat) {
+        this.fileFormat = DefaultFileFormat
+      }
+      return false
     }
     const data = await fs.promises.readFile(filePath, 'utf8')
-    return this._loadFromStringSync(data, filePath)
+    return this._loadFromStringSync(data, filePath, options)
   }
 
   /**
    * Load the store from a file synchronously.
    *
    * @param {string} filePath - The file to load the store from.
-   * @returns {CookiesData} the parsed data from the file
+   * @param {object} options - Options for loading the file
+   * @returns {CookiesIndex} the parsed data from the file
    */
-  private _loadFromFileSync (filePath: string): (CookiesData | undefined) {
+  private _loadFromFileSync (filePath: string, options: LoadOptions): boolean {
     if (!fs.existsSync(this.filePath)) {
-      return undefined
+      if (!this.fileFormat) {
+        this.fileFormat = DefaultFileFormat
+      }
+      return false
     }
     const data = fs.readFileSync(filePath, 'utf8')
-    return this._loadFromStringSync(data, filePath)
+    return this._loadFromStringSync(data, filePath, options)
   }
 
   /**
    * Loads the store from a json string.
    * @param {string} data - The string data that was loaded from a file.
    * @param {string} filePath - The path of the file that the string data was loaded from.
-   * @returns {CookiesData} the parsed data
+   * @param {object} options - Options for loading the file.
+   * @returns {CookiesIndex} the parsed data
    */
-  private _loadFromStringSync (data: string, filePath: string): CookiesData {
-    if (!data) {
-      // file is empty, so nothing to load
-      return {}
-    }
-
-    // de-serialize json
-    let dataJson: (CookiesData | null) = null
-    try {
-      dataJson = JSON.parse(data)
-    } catch {
-      throw new Error(`Could not parse cookie file ${filePath}. Please ensure it is not corrupted.`)
-    }
-
-    // ensure object is a json object
-    if (!dataJson || (typeof dataJson) !== 'object' || dataJson instanceof Array) {
-      throw new Error('Invalid cookies file')
-    }
-
-    // create Cookie instances of all entries
-    for (const d of Object.keys(dataJson)) {
-      const dVal = dataJson[d]
-      for (const p of Object.keys(dVal)) {
-        const pVal = dVal[p]
-        for (const k of Object.keys(pVal)) {
-          // since Cookie is a class, we need to create an instance of it
-          const valJson = JSON.stringify(pVal[k])
-          const cookie = tough.Cookie.fromJSON(valJson)
-          // istanbul ignore else
-          if (cookie) {
-            pVal[k] = cookie
-          } else if (valJson) {
-            console.warn(`Failed to parse cookie object ${valJson}`)
-          }
-        }
+  private _loadFromStringSync (data: string, filePath: string, options: LoadOptions): boolean {
+    // determine file format
+    let fileFormat = this.fileFormat
+    if (!fileFormat) {
+      if (data.startsWith('{') || data.startsWith('[')) {
+        // file is empty or starts with a json character
+        fileFormat = FileFormat.json
+      } else {
+        fileFormat = FileFormat.txt
       }
     }
-    return dataJson
+    // load depending on format
+    let cookies: CookiesIndex
+    switch (fileFormat) {
+      case FileFormat.json:
+        cookies = parseCookiesJson(data, {
+          ...options,
+          filePath
+        })
+        break
+
+      case FileFormat.txt:
+        cookies = parseNetscapeCookiesTxtToIndex(data, {
+          ...options,
+          filePath,
+          httpOnlyExtension: this.httpOnlyExtension
+        })
+        break
+
+      default:
+        throw new Error(`Unknown cookies file format ${fileFormat}`)
+    }
+    // apply loaded file
+    this.fileFormat = fileFormat
+    if (cookies) {
+      this.idx = cookies
+    }
+    return (cookies !== undefined)
   }
 
   /**
@@ -883,21 +926,44 @@ export default class FileCookieStore extends tough.Store {
   /**
    * Saves the store to a file asynchronously.
    * @param {string} filePath - The file path to save the store to.
-   * @param {CookiesData} data - The cookies to save to the file.
+   * @param {CookiesIndex} data - The cookies to save to the file.
    * @returns {Promise} a promise for the write task
    */
-  private _saveToFileAsync (filePath: string, data: CookiesData): Promise<void> {
-    const dataString = JSON.stringify(data)
+  private _saveToFileAsync (filePath: string, data: CookiesIndex): Promise<void> {
+    const dataString = this._saveToStringSync(data)
     return fs.promises.writeFile(filePath, dataString)
   }
 
   /**
    * Saves the store to a file synchronously.
    * @param {string} filePath - The file path to save the store to.
-   * @param {CookiesData} data - The cookies to save to the file.
+   * @param {CookiesIndex} data - The cookies to save to the file.
    */
-  private _saveToFileSync (filePath: string, data: CookiesData): void {
-    const dataString = JSON.stringify(data)
+  private _saveToFileSync (filePath: string, data: CookiesIndex): void {
+    const dataString = this._saveToStringSync(data)
     fs.writeFileSync(filePath, dataString)
+  }
+
+  /**
+   * Serializes the cookies data to a string
+   * @param {CookiesIndex} data - The cookies data to serialize
+   * @returns {string} the serialized cookies data
+   */
+  private _saveToStringSync (data: CookiesIndex): string {
+    if (!this.fileFormat) {
+      throw new Error('File format has not been determined')
+    }
+    switch (this.fileFormat) {
+      case FileFormat.json:
+        return stringifyCookiesJson(data)
+
+      case FileFormat.txt:
+        return stringifyNetscapeCookiesTxt(data, {
+          httpOnlyExtension: this.httpOnlyExtension
+        })
+
+      default:
+        throw new Error(`Unknown cookies file format ${this.fileFormat}`)
+    }
   }
 }
