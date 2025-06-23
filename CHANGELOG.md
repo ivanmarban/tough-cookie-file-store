@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- [#23][3] Add support for async fs operations, merge types into typescript file
 
 ## [v3.0.2] - 2025-06-06
 ### Added
@@ -80,3 +82,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 [0]: https://github.com/ivanmarban/tough-cookie-file-store/issues/7
 [1]: https://github.com/ivanmarban/tough-cookie-file-store/pull/9
 [2]: https://github.com/ivanmarban/tough-cookie-file-store/pull/21
+[3]: https://github.com/ivanmarban/tough-cookie-file-store/pull/23

@@ -33,6 +33,12 @@
   "engines": {
     "node": ">=16"
   },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "lint": "eslint lib test --color",
     "lint:fix": "eslint lib test --fix",
