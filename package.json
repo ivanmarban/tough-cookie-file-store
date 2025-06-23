@@ -28,8 +28,8 @@
     "tough-cookie": "^5.0.0"
   },
   "type": "module",
-  "main": "lib/cookie-file-store.js",
-  "types" : "types/cookie-file-store.d.ts",
+  "main": "dist/cookie-file-store.js",
+  "types": "dist/cookie-file-store.d.ts",
   "engines": {
     "node": ">=16"
   },
@@ -37,10 +37,13 @@
     "lint": "eslint lib test --color",
     "lint:fix": "eslint lib test --fix",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-    "ts:types": "tsc"
+    "ts:types": "tsc",
+    "build": "tsc",
+    "prepare": "npm run build"
   },
   "license": "MIT",
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
     "chai": "^5.2.0",
     "chai-datetime": "^1.8.1",
     "eslint": "^8.57.1",

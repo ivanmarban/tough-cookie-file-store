@@ -1,6 +1,12 @@
 {
-  "extends": ["standard"],
-  "plugins": ["jsdoc"],
+  "extends": [
+    "standard",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "plugins": [
+    "jsdoc",
+    "@typescript-eslint"
+  ],
   "rules": {
     "jsdoc/check-alignment": "warn",
     "jsdoc/check-indentation": "warn",
