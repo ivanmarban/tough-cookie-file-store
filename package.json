@@ -1,7 +1,7 @@
 {
   "name": "tough-cookie-file-store",
   "description": "A JSON file store for tough-cookie module",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "author": "Ivan Marban",
   "homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
   "repository": {
@@ -46,6 +46,16 @@
     "ts:types": "tsc",
     "build": "tsc",
     "prepare": "npm run build"
+  },
+  "jest": {
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": -10
+      }
+    }
   },
   "license": "MIT",
   "devDependencies": {
