@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         node-version: [ 20, 22, 24 ]
-    name: Test - ${{ matrix.node-version }}
+    name: Test - Node v${{ matrix.node-version }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -27,17 +27,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Linter
+      - name: Run linter
         run: npm run lint
 
-      - name: Run Tests
+      - name: Run tests
         run: npm run test
 
       - name: codecov
         uses: codecov/codecov-action@v5
-        #if: ${{ matrix.node-version == '24' }}
         with:
           flags: tests-node-v${{ matrix.node-version }}
-          verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
