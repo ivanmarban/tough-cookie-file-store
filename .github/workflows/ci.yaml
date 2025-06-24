@@ -34,7 +34,7 @@ jobs:
 
       - name: codecov
         uses: codecov/codecov-action@v5
-        if: ${{ matrix.node-version }} == '24'
+        if: ${{ matrix.node-version == '24' }}
         with:
           flags: unit-tests-${{ matrix.node-version }}
           verbose: true
