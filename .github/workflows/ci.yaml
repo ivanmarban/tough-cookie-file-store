@@ -8,12 +8,12 @@ on:
       - master
 
 jobs:
-  tests:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: [ 20, 22, 24 ]
-    name: Node ${{ matrix.node-version }} test
+    name: Test - ${{ matrix.node-version }}
     steps:
       - name: Clone repository
         uses: actions/checkout@v4
@@ -22,39 +22,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
+      - name: Run Linter
         run: npm run lint
 
-      - name: Run tests
+      - name: Run Tests
         run: npm run test
 
       - name: codecov
         uses: codecov/codecov-action@v5
-        if: ${{ matrix.node-version == '24' }}
+        #if: ${{ matrix.node-version == '24' }}
         with:
-          flags: unit-tests-${{ matrix.node-version }}
+          flags: tests-node-v${{ matrix.node-version }}
           verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-#      - name: Coveralls Parallel
-#        uses: coverallsapp/github-action@v2
-#        with:
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
-#          flag-name: run-${{ matrix.node }}
-#          parallel: true
-
-#  finish:
-#    name: Coveralls Coverage
-#    needs: tests
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Coveralls Finished
-#        uses: coverallsapp/github-action@v2
-#        with:
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
-#          parallel-finished: true
