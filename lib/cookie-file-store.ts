@@ -82,9 +82,7 @@ export default class FileCookieStore extends tough.Store {
     super()
     this.synchronous = !options?.async
     this.filePath = filePath
-    if (options?.fileFormat) {
-      this.fileFormat = options.fileFormat
-    }
+    this.fileFormat = options?.fileFormat || undefined
     this.idx = {}
     this.httpOnlyExtension = options?.httpOnlyExtension ?? true
     if (util.inspect.custom) {
