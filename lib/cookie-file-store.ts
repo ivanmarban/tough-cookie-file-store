@@ -5,7 +5,7 @@ import type {
   CookiesIndex,
   CookiesDomainData
 } from './cookies-index'
-import { parseCookiesJson, stringifyCookiesJson } from './formats/cookies-json'
+import { parseCookiesJson, parseCookiesJsonObject, stringifyCookiesJson } from './formats/cookies-json'
 import { parseNetscapeCookiesTxtToIndex, stringifyNetscapeCookiesTxt } from './formats/netscape-cookies-txt'
 
 export enum FileFormat {
@@ -812,13 +812,15 @@ export default class FileCookieStore extends tough.Store {
    * @returns {CookiesIndex} the parsed data
    */
   private _loadFromStringSync (data: string, filePath: string, options: LoadOptions): boolean {
-    // determine file format
+    // determine file format if not specified
+    let jsonData
     let fileFormat = this.fileFormat
     if (!fileFormat) {
-      if (data.startsWith('{') || data.startsWith('[')) {
-        // file is empty or starts with a json character
+      // try to parse json initially
+      try {
+        jsonData = JSON.parse(data)
         fileFormat = FileFormat.json
-      } else {
+      } catch {
         fileFormat = FileFormat.txt
       }
     }
@@ -826,10 +828,14 @@ export default class FileCookieStore extends tough.Store {
     let cookies: CookiesIndex
     switch (fileFormat) {
       case FileFormat.json:
-        cookies = parseCookiesJson(data, {
-          ...options,
-          filePath
-        })
+        if (jsonData !== undefined) {
+          cookies = parseCookiesJsonObject(jsonData)
+        } else {
+          cookies = parseCookiesJson(data, {
+            ...options,
+            filePath
+          })
+        }
         break
 
       case FileFormat.txt:

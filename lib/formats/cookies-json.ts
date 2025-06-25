@@ -27,14 +27,23 @@ export function parseCookiesJson (data: string, options?: ParseCookiesJsonOption
     throw new Error(`Could not parse cookie file${filePathStr}. Please ensure it is not corrupted.`)
   }
 
+  // parse object
+  return parseCookiesJsonObject(dataJson)
+}
+
+/**
+ * Processes the json object of a cookies json file, converting cookie objects to tough.Cookie instances
+ * @param {any} data - The json object to parse
+ * @returns {CookiesIndex} the parsed cookies index
+ */
+export function parseCookiesJsonObject (data: any): CookiesIndex {
   // ensure object is a json object
-  if (!dataJson || (typeof dataJson) !== 'object' || dataJson instanceof Array) {
+  if (!data || (typeof data) !== 'object' || data instanceof Array) {
     throw new Error('Invalid cookies file')
   }
-
   // create Cookie instances of all entries
-  for (const d of Object.keys(dataJson)) {
-    const dVal = dataJson[d]
+  for (const d of Object.keys(data)) {
+    const dVal = data[d]
     for (const p of Object.keys(dVal)) {
       const pVal = dVal[p]
       for (const k of Object.keys(pVal)) {
@@ -50,7 +59,7 @@ export function parseCookiesJson (data: string, options?: ParseCookiesJsonOption
       }
     }
   }
-  return dataJson
+  return data
 }
 
 /**
