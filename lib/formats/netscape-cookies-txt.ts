@@ -37,6 +37,7 @@ export function * parseNetscapeCookiesTxtLineByLine (data: string, options?: Par
   }
 
   // parse file line by line
+  const httpOnlyExtension = options?.httpOnlyExtension ?? true
   let lineNum = 0
   for (let line of lines) {
     lineNum++
@@ -47,7 +48,7 @@ export function * parseNetscapeCookiesTxtLineByLine (data: string, options?: Par
     }
     // ignore if line is a comment
     const httpOnly = line.startsWith(HttpOnlyPrefix)
-    if (CommentRegex.test(line) && (!httpOnly || !options?.httpOnlyExtension)) {
+    if (CommentRegex.test(line) && (!httpOnly || !httpOnlyExtension)) {
       continue
     }
 
