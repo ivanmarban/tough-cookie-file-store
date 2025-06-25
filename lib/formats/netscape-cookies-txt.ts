@@ -19,7 +19,7 @@ export type ParseNetscapeCookiesOptions = {
  * @param {object} options - Options for loading the cookies file.
  * @returns {Generator} a generator that yields each cookie
  */
-export function * parseNetscapeCookiesTxtLineByLine (data: string, options?: ParseNetscapeCookiesOptions): Generator<{domain:string, cookie:tough.Cookie}> {
+export function * parseNetscapeCookiesTxtLineByLine (data: string, options?: ParseNetscapeCookiesOptions): Generator<tough.Cookie> {
   // code adapted from https://github.com/JSBizon/file-cookie-store/blob/61795ac4806504e1baaa3b459bcdaa1517ccad1f/index.js#L188
 
   // if file is empty, dont bother parsing
@@ -89,10 +89,7 @@ export function * parseNetscapeCookiesTxtLineByLine (data: string, options?: Par
       key: decodeURIComponent(parsed[5]),
       value: decodeURIComponent(parsed[6])
     })
-    yield {
-      domain: canDomain,
-      cookie
-    }
+    yield cookie
   }
 }
 
@@ -104,12 +101,12 @@ export function * parseNetscapeCookiesTxtLineByLine (data: string, options?: Par
  */
 export function parseNetscapeCookiesTxtToIndex (data: string, options: ParseNetscapeCookiesOptions): CookiesIndex {
   const cookies: CookiesIndex = {}
-  for (const { domain, cookie } of parseNetscapeCookiesTxtLineByLine(data, options)) {
-    if (domain && cookie.path && cookie.key) {
-      let domainVal = cookies[domain]
+  for (const cookie of parseNetscapeCookiesTxtLineByLine(data, options)) {
+    if (cookie.domain && cookie.path && cookie.key) {
+      let domainVal = cookies[cookie.domain]
       if (!domainVal) {
         domainVal = {}
-        cookies[domain] = domainVal
+        cookies[cookie.domain] = domainVal
       }
       let pathVal = domainVal[cookie.path]
       if (!pathVal) {
