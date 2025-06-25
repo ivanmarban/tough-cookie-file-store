@@ -18,10 +18,10 @@ export const DefaultFileFormat = FileFormat.json
 export type FileCookieStoreOptions = {
   /// Whether to write the file asynchronously
   async?: boolean
-  /// Whether to write the file asynchronously
+  /// Whether to load the file asynchronously
   loadAsync?: boolean
   /// The format of the file. If not specified, the format will be auto-detected.
-  /// If not specified and the file doesn't exist, the format will default to txt.
+  /// If not specified and the file doesn't exist, the format will default to json.
   fileFormat?: FileFormat
   /// Continue parsing the file and if an invalid line was found. This only applies to the txt format.
   forceParse?: boolean
