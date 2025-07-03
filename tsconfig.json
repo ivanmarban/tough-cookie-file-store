@@ -3,14 +3,14 @@
     "lib/**/*"
   ],
   "compilerOptions": {
-    "module": "esnext",
+    "module": "node16",
     "allowJs": true,
     "declaration": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "target": "es2017",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "sourceMap": true,
     "outDir": "dist"
   }

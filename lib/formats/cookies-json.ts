@@ -1,5 +1,5 @@
 import * as tough from 'tough-cookie'
-import { CookiesIndex } from '../cookies-index'
+import type { CookiesIndex } from '../cookies-index.js'
 
 export type ParseCookiesJsonOptions = {
   filePath?: string
