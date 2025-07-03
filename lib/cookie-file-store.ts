@@ -1,12 +1,12 @@
 import * as tough from 'tough-cookie'
-import fs from 'fs'
-import util from 'util'
+import * as fs from 'fs'
+import * as util from 'util'
 import type {
   CookiesIndex,
   CookiesDomainData
-} from './cookies-index'
-import { parseCookiesJson, parseCookiesJsonObject, stringifyCookiesJson } from './formats/cookies-json'
-import { parseNetscapeCookiesTxtToIndex, stringifyNetscapeCookiesTxt } from './formats/netscape-cookies-txt'
+} from './cookies-index.js'
+import { parseCookiesJson, parseCookiesJsonObject, stringifyCookiesJson } from './formats/cookies-json.js'
+import { parseNetscapeCookiesTxtToIndex, stringifyNetscapeCookiesTxt } from './formats/netscape-cookies-txt.js'
 
 export enum FileFormat {
   json = 'json',

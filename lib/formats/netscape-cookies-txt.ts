@@ -1,5 +1,5 @@
 import * as tough from 'tough-cookie'
-import { CookiesIndex } from '../cookies-index'
+import type { CookiesIndex } from '../cookies-index.js'
 
 const HttpOnlyPrefix = '#HttpOnly_'
 const AllWhitespaceRegex = /^\s*$/
