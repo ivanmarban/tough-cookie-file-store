@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v3.2.1] - 2025-07-03
+### Fixed
+- [#26][5] Fix issue when importing from non-module
+
 ## [v3.2.0] - 2025-06-27
 ### Added
 - [#24][4] Add fileFormat option, support for loading cookies.txt
@@ -73,7 +77,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [v1.0.0] - 2016-02-10
 - Initial version.
 
-[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.2.0...master
+[unreleased]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.2.1...master
+[v3.2.1]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.2.0...v3.2.1
 [v3.2.0]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.1.0...v3.2.0
 [v3.1.0]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.2...v3.1.0
 [v3.0.2]: https://github.com/ivanmarban/tough-cookie-file-store/compare/v3.0.1...v3.0.2
@@ -92,3 +97,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 [2]: https://github.com/ivanmarban/tough-cookie-file-store/pull/21
 [3]: https://github.com/ivanmarban/tough-cookie-file-store/pull/23
 [4]: https://github.com/ivanmarban/tough-cookie-file-store/pull/24
+[5]: https://github.com/ivanmarban/tough-cookie-file-store/pull/26
