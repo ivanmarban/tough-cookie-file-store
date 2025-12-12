@@ -6,7 +6,7 @@
   "homepage": "https://github.com/ivanmarban/tough-cookie-file-store",
   "repository": {
     "type": "git",
-    "url": "http://github.com/ivanmarban/tough-cookie-file-store.git"
+    "url": "git+ssh://git@github.com/ivanmarban/tough-cookie-file-store.git"
   },
   "bugs": {
     "url": "https://github.com/ivanmarban/tough-cookie-file-store/issues"
